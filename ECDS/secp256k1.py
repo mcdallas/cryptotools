@@ -1,3 +1,4 @@
+import secrets
 from transformations import int_to_bytes, bytes_to_int
 
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -9,6 +10,12 @@ N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 def private_to_public(key):
     x, y = point_mul(G, bytes_to_int(key))
     return b'\x04' + int_to_bytes(x) + int_to_bytes(y)
+
+
+def generate_keypair():
+    private = secrets.token_bytes(32)
+    public = private_to_public(private)
+    return private, public
 
 
 def point_add(p, q):
