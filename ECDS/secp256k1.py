@@ -26,6 +26,7 @@ def point_add(p, q):
         lam = (3 * px * px) * pow(2 * py % P, P - 2, P)
     else:
         lam = pow(qx - px, P - 2, P) * (qy - py) % P
+
     rx = lam**2 - px - qx
     ry = lam * (px - rx) - py
     return rx % P, ry % P
@@ -35,8 +36,8 @@ def point_mul(p, d):
     n = p
     q = None
 
-    for i in range(256):
-        if d & (1 << i):
+    for i in reversed(format(d, 'b')):
+        if i == '1':
             if q is None:
                 q = n
             else:
