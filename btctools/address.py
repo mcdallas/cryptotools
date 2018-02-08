@@ -4,6 +4,9 @@ import base58
 from ECDS.secp256k1 import generate_keypair
 from transformations import bytes_to_hex
 
+"""Use http://gobittest.appspot.com/Address to make sure that you are producing the correct addresses"""
+
+
 sha256 = lambda x: hashlib.sha256(x).digest()
 hash160 = lambda x: hashlib.new('ripemd160', x).digest()
 

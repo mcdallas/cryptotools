@@ -1,3 +1,6 @@
+"""Helper Functions to convert between data types"""
+
+
 def bytes_to_int(bts):
     return int.from_bytes(bts, 'big')
 
