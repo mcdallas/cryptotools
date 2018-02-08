@@ -20,9 +20,11 @@ def pubkey_to_address(pub, version='P2PKH'):
 
 
 def vanity(prefix):
-    counter = 0
+    """Generate a vanity address starting with the input (excluding the version byte)"""
     not_in_alphabet = {i for i in prefix if i not in base58.ALPHABET}
     assert not not_in_alphabet, f"Characters {not_in_alphabet} are not in alphabet"
+
+    counter = 0
     while True:
         counter += 1
         private, public = generate_keypair()

@@ -1,4 +1,4 @@
-from rsa.message import bytes_to_int, int_to_bytes
+from transformations import bytes_to_int, int_to_bytes
 
 ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 BASE = len(ALPHABET)
