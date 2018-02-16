@@ -1,9 +1,10 @@
 
 import secrets
 import message
-from transformations import int_to_bytes, hex_to_int
-from RSA.rsa import mulinv
+
 import ECDS
+from RSA.primes import mulinv
+from transformations import int_to_bytes, bytes_to_int, hex_to_int
 
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 
@@ -30,15 +31,24 @@ def encode_public_key(key: Point) -> bytes:
     return b'\x04' + int_to_bytes(key.x) + int_to_bytes(key.y)
 
 
-def generate_keypair():
+def decode_public_key(key):
+    assert key.startswith(b'\x04'), 'Wrong key format'
+    key = key[1:]
+    x, y = key[:len(key)//2], key[len(key)//2:]
+    return Point(bytes_to_int(x), bytes_to_int(y))
+
+
+def generate_keypair(encoded=True):
     private = secrets.randbelow(N)
     public = private_to_public(private)
-    return int_to_bytes(private), encode_public_key(public)
+    return (int_to_bytes(private), encode_public_key(public)) if encoded else (private, public)
 
 
 class Message(message.Message):
 
     def sign(self, private):
+        if isinstance(private, bytes):
+            private = bytes_to_int(private)
         e = hex_to_int(self.hash())
         r, s = 0, 0
         while r == 0 or s == 0:
@@ -52,8 +62,9 @@ class Message(message.Message):
         return r, s
 
     def verify(self, signature, public):
-        if isinstance(public, tuple):
-            public = Point(*public)
+        if isinstance(public, bytes):
+            public = decode_public_key(public)
+
         r, s = signature
         if not (1 <= r < N and 1 <= s < N):
             return False
