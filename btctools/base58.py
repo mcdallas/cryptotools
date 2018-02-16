@@ -4,7 +4,7 @@ ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 BASE = len(ALPHABET)
 
 
-def encode(bts):
+def encode(bts: bytes) -> str:
     n = bytes_to_int(bts)
     leading_zero_bytes = len(bts) - len(bts.lstrip(b'\x00'))
     int_digits = []
@@ -16,7 +16,7 @@ def encode(bts):
     return ''.join(ALPHABET[i] for i in reversed(int_digits))
 
 
-def decode(b58):
+def decode(b58: str) -> bytes:
     partial_sum = 0
     exponent = 0
     for digit in reversed(b58):

@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from btctools import base58
 from ECDS.secp256k1 import generate_keypair
-from transformations import int_to_hex, bytes_to_hex
+from transformations import bytes_to_hex
 
 """Use http://gobittest.appspot.com/Address to make sure that you are producing the correct addresses"""
 
@@ -12,7 +12,7 @@ from transformations import int_to_hex, bytes_to_hex
 sha256 = lambda x: hashlib.sha256(x).digest()
 ripemd160 = lambda x: hashlib.new('ripemd160', x).digest()
 
-versions = {'P2PKH': b'\x00', 'P2SH': b'\x05', 'BIP32': b'\x04\x88\xb2\x1e'}
+versions = {'P2PKH': b'\x00', 'P2SH': b'\x05'}
 
 
 def pubkey_to_address(pub, version='P2PKH'):
@@ -37,4 +37,4 @@ def vanity(prefix):
         if address[1:].startswith(prefix):
             duration = timedelta(seconds=round(time() - start))
             print(f"Found address starting with {prefix} in {duration} after {counter:,} tries")
-            return int_to_hex(private), bytes_to_hex(public), address
+            return bytes_to_hex(private), bytes_to_hex(public), address
