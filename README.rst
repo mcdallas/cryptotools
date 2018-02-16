@@ -53,6 +53,7 @@ ECDS
 btctools
 
 .. code-block:: Python
+
     >>> from transformations import bytes_to_hex
     >>> from btctools.address import pubkey_to_address
     >>> from ECDS.secp256k1 import generate_keypair
@@ -91,8 +92,8 @@ btctools
 
 vanitygen
 
-
 .. code-block:: Python
+
     >>> from btctools.address import vanity
 
     >>> private, public, address = vanity('Bob')  # Takes forever
