@@ -1,6 +1,8 @@
 import hashlib
-from btctools import base58
+from time import time
+from datetime import timedelta
 
+from btctools import base58
 from ECDS.secp256k1 import generate_keypair
 from transformations import int_to_hex, bytes_to_hex
 
@@ -26,12 +28,13 @@ def vanity(prefix):
     """Generate a vanity address starting with the input (excluding the version byte)"""
     not_in_alphabet = {i for i in prefix if i not in base58.ALPHABET}
     assert not not_in_alphabet, f"Characters {not_in_alphabet} are not in alphabet"
-
+    start = time()
     counter = 0
     while True:
         counter += 1
         private, public = generate_keypair()
         address = pubkey_to_address(public)
         if address[1:].startswith(prefix):
-            print(f"Found address starting with {prefix} after {counter:,} tries")
+            duration = timedelta(seconds=round(time() - start))
+            print(f"Found address starting with {prefix} in {duration} after {counter:,} tries")
             return int_to_hex(private), bytes_to_hex(public), address
