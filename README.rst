@@ -25,7 +25,7 @@ RSA
 
     >>> message.encrypt(public)
     >>> message
-    b'\x05\xe3q\x92\x1c=)\xaev\xe8\x8d\x8c\x9f\x8d\xde\x17\xdc\x95y\x1e\x90N\xf1A\x816\xb7|z\x83\x94\xe8\x1f\x0b\xdd\xa5W\xcb\xa6[_v\xae\xba\x02H\x9a)\xdab\x04Qx\xdb\xdf6Rt\xf8n=\x8f\x92\xae'
+    b'\x05\xe3q\x92\x1c=)\xaev\xe8\x8d\x8c\x9f\x8d\xde\x17\xdc\x95y\x1e\x90N\xf1A\x816\xb7|z\x83...'
 
     >>> message.decrypt(private)
     >>> message.hex() == txt
@@ -37,6 +37,7 @@ RSA
     True
 
 ECDS
+
 .. code-block:: Python
 
     from ECDS.secp256k1 import generate_keypair, Message
@@ -50,6 +51,7 @@ ECDS
 
 
 btctools
+
 .. code-block:: Python
     >>> from transformations import bytes_to_hex
     >>> from btctools.address import pubkey_to_address
@@ -85,6 +87,10 @@ btctools
 
     >>> pubkey_to_address(encode_public_key(public_key), version='P2SH')
     '3DMWLzufL1qbfPe9xqsUAT1tRLUQ2qRdhQ'
+
+
+vanitygen
+
 
 .. code-block:: Python
     >>> from btctools.address import vanity
