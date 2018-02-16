@@ -1,4 +1,4 @@
-from RSA.rsa import generate_keypair, Message
+from .rsa import generate_keypair, Message
 
 __all__ = ['generate_keypair', 'Message']
 
