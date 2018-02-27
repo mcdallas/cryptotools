@@ -18,6 +18,9 @@ class Point:
     def __repr__(self):
         return f"Point({self.x}, {self.y}, {self.curve.name})"
 
+    def __eq__(self, other):
+        return self.x % self.curve.P == other.x % self.curve.P and self.y % self.curve.P == other.y % self.curve.P
+
 
 class Curve:
 
@@ -57,3 +60,9 @@ class Curve:
 
     def __contains__(self, point):
         return point.y ** 2 % self.P == (point.x ** 3 + self.a * point.x + self.b) % self.P
+
+    def f(self, x):
+        """Compute y**2 = x^3 + ax + b in field FP"""
+        return (x ** 3 + self.a * x + self.b) % self.P
+
+

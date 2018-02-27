@@ -1,9 +1,8 @@
-
 import secrets
 import message
 
 import ECDS
-from RSA.primes import mulinv
+from number_theory_stuff import mulinv, modsqrt
 from transformations import int_to_bytes, bytes_to_int, hex_to_int
 
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
@@ -27,15 +26,31 @@ def private_to_public(key: int) -> Point:
     return CURVE.G * key
 
 
-def encode_public_key(key: Point) -> bytes:
-    return b'\x04' + int_to_bytes(key.x) + int_to_bytes(key.y)
+def encode_public_key(key: Point, compressed=False) -> bytes:
+    if compressed:
+        if key.y & 1:  # odd root
+            return b'\x03' + int_to_bytes(key.x).zfill(32)
+        else:  # even root
+            return b'\x02' + int_to_bytes(key.x).zfill(32)
+    return b'\x04' + int_to_bytes(key.x).zfill(32) + int_to_bytes(key.y).zfill(32)
 
 
-def decode_public_key(key):
-    assert key.startswith(b'\x04'), 'Wrong key format'
-    key = key[1:]
-    x, y = key[:len(key)//2], key[len(key)//2:]
-    return Point(bytes_to_int(x), bytes_to_int(y))
+def decode_public_key(key: bytes) -> Point:
+    if key.startswith(b'\x04'):  # uncompressed key
+        assert len(key) == 65, 'Uncompressed key must be 65 bytes long'
+        x, y = bytes_to_int(key[1:33]), bytes_to_int(key[33:])
+    else:  # compressed key
+        assert len(key) == 33, 'Compressed key must be 33 bytes long'
+        x = bytes_to_int(key[1:])
+        root = modsqrt(CURVE.f(x), P)
+        if key.startswith(b'\x03'):  # odd root
+            y = root if root % 2 == 1 else -root % P
+        elif key.startswith(b'\x02'):  # even root
+            y = root if root % 2 == 0 else -root % P
+        else:
+            assert False, 'Wrong key format'
+
+    return Point(x, y)
 
 
 def generate_keypair(encoded=True):
