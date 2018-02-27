@@ -1,4 +1,4 @@
-from .primes import mulinv, random_prime, random_coprime
+from number_theory_stuff import mulinv, random_prime, random_coprime
 import message
 from transformations import *
 
