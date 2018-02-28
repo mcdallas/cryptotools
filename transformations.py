@@ -6,7 +6,8 @@ def bytes_to_int(bts):
 
 
 def int_to_bytes(i):
-    return i.to_bytes((i.bit_length() + 7) // 8, 'big')
+    length = max(1, (i.bit_length() + 7) // 8)
+    return i.to_bytes(length, 'big')
 
 
 def str_to_bytes(s):
