@@ -38,12 +38,6 @@ def script_to_p2wsh(script, version_byte, witver):
     return base58.encode(payload + checksum)
 
 
-def to_bech32(pubkey_or_script, witver):
-    assert isinstance(pubkey_or_script, bytes)
-    is_key = pubkey_or_script.startswith((b'\02', b'\03')) and len(pubkey_or_script) == 33
-    return pubkey_to_bech32(pubkey_or_script, witver) if is_key else script_to_bech32(pubkey_or_script, witver)
-
-
 def script_to_bech32(script, witver):
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = sha256(script)
@@ -56,19 +50,27 @@ def pubkey_to_bech32(pub, witver):
     return bech32.encode(HRP, witver, witprog)
 
 
-versions = {
+key_to_addr_versions = {
     'P2PKH': partial(legacy_address, version_byte=0x00),
-    'P2SH': partial(legacy_address, version_byte=0x05),
     'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),
+    'BECH32': partial(pubkey_to_bech32, witver=0x00),
+}
+
+script_to_addr_versions = {
+    'P2SH': partial(legacy_address, version_byte=0x05),
     'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),
-    'BECH32': partial(to_bech32, witver=0x00),
+    'BECH32': partial(script_to_bech32, witver=0x00),
 }
 
 
 def pubkey_to_address(pub, version='P2PKH'):
-    """Input is a public key for P2PKH/P2WPKH and a script for P2SH/P2wSH"""
-    converter = versions[version.upper()]
+    converter = key_to_addr_versions[version.upper()]
     return converter(pub)
+
+
+def script_to_address(script, version='P2SH'):
+    converter = script_to_addr_versions[version.upper()]
+    return converter(script)
 
 
 def op_push(i):
