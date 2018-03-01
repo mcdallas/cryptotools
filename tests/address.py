@@ -1,11 +1,9 @@
-import sys, pathlib
-sys.path.append(str(pathlib.Path(__file__).absolute().parent.parent))
-
 import unittest
-import bs4
-import requests
+import urllib.request
+import urllib.parse
+from lxml import etree
 
-from btctools.address import pubkey_to_address, hash160, address_to_script
+from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, op_push
 from ECDS.secp256k1 import generate_keypair, private_to_public, encode_public_key
 from transformations import hex_to_int, hex_to_bytes, bytes_to_hex, int_to_str
 from btctools import bech32
@@ -16,12 +14,20 @@ class TestLegacyAddress(unittest.TestCase):
     url = 'http://gobittest.appspot.com/Address'
 
     def test_p2pkh(self):
-        r = requests.post(self.url, data={'Random': 'Random'})
-        soup = bs4.BeautifulSoup(r.text, 'lxml')
+        """https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses#See_Also"""
 
-        private = soup.find('input', {'name': 'private'})['value']
-        public = soup.find('input', {'name': 'public'})['value']
-        address = soup.find('input', {'name': 'Base58'})['value']
+        payload = {'Random': 'Random'}
+        data = urllib.parse.urlencode(payload).encode('ascii')
+        req = urllib.request.Request(self.url, data)
+
+        with urllib.request.urlopen(req) as response:
+            html = response.read()
+
+        tree = etree.HTML(html)
+
+        private = tree.find('.//input[@name="private"]').attrib['value']
+        public = tree.find('.//input[@name="public"]').attrib['value']
+        address = tree.find('.//input[@name="Base58"]').attrib['value']
 
         my_pubkey = encode_public_key(private_to_public(hex_to_int(private)))
         self.assertEqual(public.lower(), bytes_to_hex(my_pubkey))
@@ -47,8 +53,8 @@ class TestBech32(unittest.TestCase):
         pubkey = hex_to_bytes('0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798')
         self.assertEqual(bech32.encode(self.hrp, self.witver, hash160(pubkey)), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
         self.assertEqual(pubkey_to_address(pubkey, version='BECH32'), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
-        script = b'\x21' + pubkey + b'\xac'
-        self.assertEqual(pubkey_to_address(script, 'BECH32'), 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
+        script = op_push(33) + pubkey + b'\xac'  # <OP_PUSH> <key> <OP_CHECKSIG>
+        self.assertEqual(script_to_address(script, 'BECH32'), 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
 
     def test_valid_bech32(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#test-vectors"""
