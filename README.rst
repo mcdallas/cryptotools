@@ -86,8 +86,9 @@ btctools
     >>> public_key in CURVE
     True
 
-    >>> pubkey_to_address(encode_public_key(public_key), version='P2SH')
-    '3DMWLzufL1qbfPe9xqsUAT1tRLUQ2qRdhQ'
+    >>> pubkey_to_address(encode_public_key(public_key, compressed=True), version='BECH32')
+    'bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'
+
 
 
 vanitygen
