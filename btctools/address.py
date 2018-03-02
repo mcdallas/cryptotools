@@ -53,12 +53,14 @@ def pubkey_to_bech32(pub, witver):
 key_to_addr_versions = {
     'P2PKH': partial(legacy_address, version_byte=0x00),
     'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),
+    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push_script(hash160(pub)), version_byte=0x05),
     'BECH32': partial(pubkey_to_bech32, witver=0x00),
 }
 
 script_to_addr_versions = {
     'P2SH': partial(legacy_address, version_byte=0x05),
     'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),
+    'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push_script(sha256(script)), version_byte=0x05),
     'BECH32': partial(script_to_bech32, witver=0x00),
 }
 
@@ -85,6 +87,15 @@ def op_push(i):
         return b'\x4e' + int_to_bytes(i)
 
 
+def push_script(script):
+    return op_push(len(script)) + script
+
+
+def witness_byte(witver):
+    assert 0 <= witver <= 16, "Witness version must be between 0-16"
+    return int_to_bytes(witver + 0x50 if witver > 0 else 0)
+
+
 def address_to_script(addr):
     """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#segwit-address-format"""
     hrp, _ = bech32.bech32_decode(addr)
@@ -94,8 +105,7 @@ def address_to_script(addr):
     if not (0 <= witver <= 16):
         raise bech32.Bech32DecodeError('Invalid witness version')
 
-    OP_n = int_to_bytes(witver + 0x50 if witver > 0 else 0)
-    script = OP_n + op_push(len(witprog)) + bytes(witprog)
+    script = witness_byte(witver) + push_script(bytes(witprog))
     return script
 
 
