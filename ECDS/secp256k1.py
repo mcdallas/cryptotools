@@ -1,5 +1,6 @@
 import secrets
 import message
+from hashlib import sha256
 
 import ECDS
 from number_theory_stuff import mulinv, modsqrt
@@ -33,6 +34,28 @@ def encode_public_key(key: Point, compressed=False) -> bytes:
         else:  # even root
             return b'\x02' + int_to_bytes(key.x).zfill(32)
     return b'\x04' + int_to_bytes(key.x).zfill(32) + int_to_bytes(key.y).zfill(32)
+
+
+def encode_private_key(key, compressed=False):
+    from btctools import base58
+    extended = b'\x80' + key + (b'\x01' if compressed else b'')
+    hashed = sha256(sha256(extended).digest()).digest()
+    checksum = hashed[:4]
+    return base58.encode(extended + checksum)
+
+
+def decode_private_key(wif):
+    from btctools import base58
+    bts = base58.decode(wif)
+    bt80, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
+    assert sha256(sha256(bt80 + key).digest()).digest()[:4] == checksum, 'Invalid Checksum'
+    assert bt80 == b'\x80', 'Invalid Format'
+    if key.endswith(b'\x01'):
+        key = key[:-1]
+        compressed = True  # TODO
+    else:
+        compressed = False  # TODO
+    return key
 
 
 def decode_public_key(key: bytes) -> Point:
