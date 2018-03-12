@@ -4,8 +4,8 @@ from datetime import timedelta
 from functools import partial
 
 from btctools import base58, bech32
-from ECDS.secp256k1 import generate_keypair
-from transformations import bytes_to_hex, int_to_bytes
+from ECDS.secp256k1 import generate_keypair, PublicKey
+from transformations import int_to_bytes
 
 
 sha256 = lambda x: hashlib.sha256(x).digest()
@@ -17,7 +17,8 @@ HRP = 'bc'
 
 def legacy_address(pub_or_script, version_byte):
     """https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses"""
-    hashed = hash160(pub_or_script)
+    bts = pub_or_script.encode(compressed=False) if isinstance(pub_or_script, PublicKey) else pub_or_script
+    hashed = hash160(bts)
     payload = int_to_bytes(version_byte) + hashed
     checksum = sha256(sha256(payload))[:4]
     address = payload + checksum
@@ -26,7 +27,7 @@ def legacy_address(pub_or_script, version_byte):
 
 def pubkey_to_p2wpkh(pub, version_byte, witver):
     """https://github.com/bitcoin/bips/blob/master/bip-0142.mediawiki#specification"""
-    payload = int_to_bytes(version_byte) + int_to_bytes(witver) + b'\x00' + hash160(pub)
+    payload = int_to_bytes(version_byte) + int_to_bytes(witver) + b'\x00' + hash160(pub.encode(compressed=True))
     checksum = sha256(sha256(payload))[:4]
     return base58.encode(payload + checksum)
 
@@ -46,14 +47,14 @@ def script_to_bech32(script, witver):
 
 def pubkey_to_bech32(pub, witver):
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
-    witprog = hash160(pub)
+    witprog = hash160(pub.encode(compressed=True))
     return bech32.encode(HRP, witver, witprog)
 
 
 key_to_addr_versions = {
     'P2PKH': partial(legacy_address, version_byte=0x00),
     'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),
-    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push_script(hash160(pub)), version_byte=0x05),
+    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push_script(hash160(pub.encode(compressed=False))), version_byte=0x05),
     'BECH32': partial(pubkey_to_bech32, witver=0x00),
 }
 
@@ -122,4 +123,4 @@ def vanity(prefix):
         if address[1:].startswith(prefix):
             duration = timedelta(seconds=round(time() - start))
             print(f"Found address starting with {prefix} in {duration} after {counter:,} tries")
-            return bytes_to_hex(private), bytes_to_hex(public), address
+            return private.hex(), public.hex(), address
