@@ -54,39 +54,35 @@ btctools
 
 .. code-block:: Python
 
-    >>> from transformations import bytes_to_hex
-    >>> from btctools.address import pubkey_to_address
     >>> from ECDS.secp256k1 import generate_keypair
 
     >>> private, public = generate_keypair()
 
-    >>> bytes_to_hex(private)
+    >>> private.hex()
     'de4f177274d29f88a5805333e10525f5dd41634455dfadc8849b977802481ccd'
 
-    >>> bytes_to_hex(public)
+    >>> public.hex()
     '047e30fd478b44869850352daef8f5f7a7b5233044018d465431afdc0b436c973e8df1244189d25ae73d90c90cc0f998eb9784adecaecc46e8c536d7d6845fa26e'
 
-    >>> pubkey_to_address(public, version='P2PKH')
+    >>> public.to_address('P2PKH')
     '19dFXDxiD4KrUTNFfcgeekFpQmUC553GzW'
 
 .. code-block:: Python
 
-    >>> import secrets
-    >>> from ECDS.secp256k1 import CURVE, encode_public_key
-    >>> from btctools.address import pubkey_to_address
+    >>> from ECDS.secp256k1 import CURVE, PrivateKey
 
-    >>> private_key = secrets.randbelow(CURVE.N)
-    >>> private_key
+    >>> private_key = PrivateKey.random()
+    >>> private_key.int()
     8034465994996476238286561766373949549982328752707977290709076444881813294372
 
-    >>> public_key = CURVE.G * private_key
+    >>> public_key = private_key.to_public()
     >>> public_key
-    Point(102868560361119050321154887315228169307787313299675114268359376451780341556078, 83001804479408277471207716276761041184203185393579361784723900699449806360826, secp256k1)
+    PublicKey(102868560361119050321154887315228169307787313299675114268359376451780341556078, 83001804479408277471207716276761041184203185393579361784723900699449806360826)
 
-    >>> public_key in CURVE
+    >>> public_key.point in CURVE
     True
 
-    >>> pubkey_to_address(encode_public_key(public_key, compressed=True), version='BECH32')
+    >>> public_key.to_address('BECH32')
     'bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'
 
 
