@@ -54,6 +54,9 @@ class PrivateKey(message.Message):
         point = CURVE.G * self.int()
         return PublicKey(point)
 
+    def __repr__(self):
+        return f"PrivateKey({self.msg})"
+
 
 class PublicKey:
 
@@ -62,6 +65,9 @@ class PublicKey:
 
     def __eq__(self, other):
         return self.point == other.point
+
+    def __repr__(self):
+        return f"PublicKey({self.x}, {self.y})"
 
     @classmethod
     def decode(cls, key):
@@ -83,7 +89,7 @@ class PublicKey:
 
     @classmethod
     def from_private(cls, prv):
-        key = PrivateKey(prv)
+        key = PrivateKey(prv) if isinstance(prv, int) else prv
         return key.to_public()
 
     @classmethod
