@@ -54,12 +54,15 @@ btctools
 
 .. code-block:: Python
 
-    >>> from ECDS.secp256k1 import generate_keypair
+    >>> from btctools import generate_keypair, push, script_to_address
 
     >>> private, public = generate_keypair()
 
     >>> private.hex()
     'de4f177274d29f88a5805333e10525f5dd41634455dfadc8849b977802481ccd'
+
+    >>> private.wif(compressed=False)
+    '5KWCAYLo35uZ9ibPTzTUDXESTE6ne8p1eXviYMHwaoS4tpvYCAp'
 
     >>> public.hex()
     '047e30fd478b44869850352daef8f5f7a7b5233044018d465431afdc0b436c973e8df1244189d25ae73d90c90cc0f998eb9784adecaecc46e8c536d7d6845fa26e'
@@ -67,22 +70,31 @@ btctools
     >>> public.to_address('P2PKH')
     '19dFXDxiD4KrUTNFfcgeekFpQmUC553GzW'
 
+    # Simple <key> <OP_CHECKSIG> script
+    >>> script = push(public.encode(compressed=True)) + b'\xac'  # <OP_PUSH> <key> <OP_CHECKSIG>
+    >>> script_to_address(script, 'P2WSH')
+    'bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'
+
+    # nested P2WSH into P2SH
+    >>> script_to_address(script, 'P2WSH-P2SH')
+    '34eBzenHJEdk5PK9ojuuBZvCRtNhvvysYZ'
+
 .. code-block:: Python
 
     >>> from ECDS.secp256k1 import CURVE, PrivateKey
 
-    >>> private_key = PrivateKey.random()
-    >>> private_key.int()
+    >>> private = PrivateKey.random()
+    >>> private.int()
     8034465994996476238286561766373949549982328752707977290709076444881813294372
 
-    >>> public_key = private_key.to_public()
-    >>> public_key
+    >>> public = private.to_public()
+    >>> public
     PublicKey(102868560361119050321154887315228169307787313299675114268359376451780341556078, 83001804479408277471207716276761041184203185393579361784723900699449806360826)
 
-    >>> public_key.point in CURVE
+    >>> public.point in CURVE
     True
 
-    >>> public_key.to_address('BECH32')
+    >>> public.to_address('P2WPKH')
     'bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'
 
 
@@ -96,3 +108,11 @@ vanitygen
     >>> private, public, address = vanity('Bob')  # Takes forever
     Found address starting with Bob in 1:17:55 after 80,111 tries
 
+
+
+to run tests
+.. code-block:: bash
+
+   $ python -m unittest
+
+from the project directory
