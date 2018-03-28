@@ -111,6 +111,7 @@ vanitygen
 
 
 to run tests
+
 .. code-block:: bash
 
    $ python -m unittest
