@@ -52,9 +52,9 @@ class TestBech32(unittest.TestCase):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#examples"""
         pubkey = PublicKey.from_hex('0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798')
         self.assertEqual(bech32.encode(self.hrp, self.witver, hash160(pubkey.encode(compressed=True))), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
-        self.assertEqual(pubkey_to_address(pubkey, version='BECH32'), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
+        self.assertEqual(pubkey_to_address(pubkey, version='P2WPKH'), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
         script = op_push(33) + pubkey.encode(compressed=True) + b'\xac'  # <OP_PUSH> <key> <OP_CHECKSIG>
-        self.assertEqual(script_to_address(script, 'BECH32'), 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
+        self.assertEqual(script_to_address(script, 'P2WSH'), 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
 
     def test_valid_bech32(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#test-vectors"""

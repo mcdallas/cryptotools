@@ -25,18 +25,20 @@ def legacy_address(pub_or_script, version_byte):
     return base58.encode(address)
 
 
-def pubkey_to_p2wpkh(pub, version_byte, witver):
-    """https://github.com/bitcoin/bips/blob/master/bip-0142.mediawiki#specification"""
-    payload = int_to_bytes(version_byte) + int_to_bytes(witver) + b'\x00' + hash160(pub.encode(compressed=True))
-    checksum = sha256(sha256(payload))[:4]
-    return base58.encode(payload + checksum)
+## WAS REPLACED BY BIP 173
+# def pubkey_to_p2wpkh(pub, version_byte, witver):
+#     """https://github.com/bitcoin/bips/blob/master/bip-0142.mediawiki#specification"""
+#     payload = int_to_bytes(version_byte) + int_to_bytes(witver) + b'\x00' + hash160(pub.encode(compressed=True))
+#     checksum = sha256(sha256(payload))[:4]
+#     return base58.encode(payload + checksum)
 
 
-def script_to_p2wsh(script, version_byte, witver):
-    """https://github.com/bitcoin/bips/blob/master/bip-0142.mediawiki#specification"""
-    payload = int_to_bytes(version_byte) + int_to_bytes(witver) + b'\x00' + sha256(script)
-    checksum = sha256(sha256(payload))[:4]
-    return base58.encode(payload + checksum)
+## WAS REPLACED WITH BIP 173
+# def script_to_p2wsh(script, version_byte, witver):
+#     """https://github.com/bitcoin/bips/blob/master/bip-0142.mediawiki#specification"""
+#     payload = int_to_bytes(version_byte) + int_to_bytes(witver) + b'\x00' + sha256(script)
+#     checksum = sha256(sha256(payload))[:4]
+#     return base58.encode(payload + checksum)
 
 
 def script_to_bech32(script, witver):
@@ -53,16 +55,16 @@ def pubkey_to_bech32(pub, witver):
 
 key_to_addr_versions = {
     'P2PKH': partial(legacy_address, version_byte=0x00),
-    'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),
+    # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
     'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push_script(hash160(pub.encode(compressed=False))), version_byte=0x05),
-    'BECH32': partial(pubkey_to_bech32, witver=0x00),
+    'P2WPKH': partial(pubkey_to_bech32, witver=0x00),
 }
 
 script_to_addr_versions = {
     'P2SH': partial(legacy_address, version_byte=0x05),
-    'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),
+#    'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
     'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push_script(sha256(script)), version_byte=0x05),
-    'BECH32': partial(script_to_bech32, witver=0x00),
+    'P2WSH': partial(script_to_bech32, witver=0x00),
 }
 
 
