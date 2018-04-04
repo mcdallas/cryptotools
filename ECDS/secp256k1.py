@@ -142,11 +142,11 @@ class Message(message.Message):
             inv_k = mulinv(k, N)
             s = (inv_k * (e + r * private.int())) % N
 
-        return r, s
+        return message.Signature(r=r, s=s)
 
     def verify(self, signature, public):
 
-        r, s = signature
+        r, s = signature.r, signature.s
         if not (1 <= r < N and 1 <= s < N):
             return False
 

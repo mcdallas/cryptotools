@@ -64,3 +64,47 @@ class Message:
 
     def hash(self):
         return hasher(self.msg).hexdigest()
+
+
+class Signature:
+
+    def __init__(self, r, s):
+        self.r = r
+        self.s = s
+
+    @classmethod
+    def decode(cls, bts):
+        from collections import deque
+        data = deque(bts)
+        lead = data.popleft() == 0x30
+        assert lead, f'Invalid leading byte: 0x{lead:x}'  # ASN1 SEQUENCE
+        sequence_length = data.popleft()
+        assert sequence_length in (68, 69, 70), f'Invalid Sequence length: {sequence_length}'
+        lead = data.popleft()
+        assert lead == 0x02, f'Invalid r leading byte: 0x{lead:x}'  # 0x02 byte before r
+        len_r = data.popleft()
+        assert len_r in (32, 33), f'Invalid r length: {len_r}'
+        bts = bytes(data)
+        r, data = bytes_to_int(bts[:len_r]), deque(bts[len_r:])
+        lead = data.popleft()
+        assert lead == 0x02, f'Invalid s leading byte: 0x{lead:x}'  # 0x02 byte before s
+        len_s = data.popleft()
+        assert len_s in (32, 33), f'Invalid s length: {len_s}'
+        bts = bytes(data)
+        s, rest = bytes_to_int(bts[:len_s]), bts[len_s:]
+        assert len(rest) == 0, f'Leftover {len(rest)} bytes'
+        return cls(r, s)
+
+    def encode(self):
+        r = int_to_bytes(self.r)
+        s = int_to_bytes(self.s)
+        len_r = int_to_bytes(len(r))
+        len_s = int_to_bytes(len(s))
+        len_sig = int_to_bytes(len(r) + len(s) + 4)
+        return b'\x30' + len_sig + b'\x02' + len_r + r + b'\x02' + len_s + s
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.r}, {self.s})"
+
+    def __eq__(self, other):
+        return self.r == other.r and self.s == other.s
