@@ -92,12 +92,20 @@ class Signature:
         assert len_s in (32, 33), f'Invalid s length: {len_s}'
         bts = bytes(data)
         s, rest = bytes_to_int(bts[:len_s]), bts[len_s:]
-        assert len(rest) == 0, f'Leftover {len(rest)} bytes'
+        assert len(rest) == 0, f'{len(rest)} leftover bytes'
+        # if rest:
+        #     sighash_type = bytes_to_int(rest)
+        #     assert sighash_type in (0x01, 0x02, 0x03, 0x81, 0x82, 0x83), 'Invalid sighash byte: 0x{sighash_type:x}'
         return cls(r, s)
 
     def encode(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki#der-encoding"""
         r = int_to_bytes(self.r)
+        if r[0] > 0x7f:
+            r = b'\x00' + r
         s = int_to_bytes(self.s)
+        if s[0] > 0x7f:
+            s = b'\x00' + s
         len_r = int_to_bytes(len(r))
         len_s = int_to_bytes(len(s))
         len_sig = int_to_bytes(len(r) + len(s) + 4)
