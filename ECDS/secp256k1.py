@@ -109,10 +109,10 @@ class PublicKey:
     def encode(self, compressed=False):
         if compressed:
             if self.y & 1:  # odd root
-                return b'\x03' + int_to_bytes(self.x).zfill(32)
+                return b'\x03' + int_to_bytes(self.x).rjust(32, b'\x00')
             else:           # even root
-                return b'\x02' + int_to_bytes(self.x).zfill(32)
-        return b'\x04' + int_to_bytes(self.x).zfill(32) + int_to_bytes(self.y).zfill(32)
+                return b'\x02' + int_to_bytes(self.x).rjust(32, b'\x00')
+        return b'\x04' + int_to_bytes(self.x).rjust(32, b'\x00') + int_to_bytes(self.y).rjust(32, b'\x00')
 
     def hex(self, compressed=False):
         return bytes_to_hex(self.encode(compressed=compressed))
