@@ -111,6 +111,19 @@ class Signature:
         len_sig = int_to_bytes(len(r) + len(s) + 4)
         return b'\x30' + len_sig + b'\x02' + len_r + r + b'\x02' + len_s + s
 
+    def verify_hash(self, hash, pubkey):
+        from btctools import N, mulinv, CURVE
+        if not (1 <= self.r < N and 1 <= self.s < N):
+            return False
+
+        e = bytes_to_int(hash)
+        w = mulinv(self.s, N)
+        u1 = (e * w) % N
+        u2 = (self.r * w) % N
+
+        point = CURVE.G * u1 + pubkey.point * u2
+        return self.r % N == point.x % N
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.r}, {self.s})"
 
