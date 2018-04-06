@@ -216,6 +216,7 @@ class InvalidTransaction(Exception):
 
 
 class VM:
+    """An environment to run the scripts"""
 
     def __init__(self, script=b''):
         self.script = script
@@ -223,34 +224,37 @@ class VM:
         self.OPS = {OP(i): partial(self.OP_PUSH, i) for i in range(1, 76)}
 
     def read(self, n):
+        """Read and remove first n bytes from the script"""
         data = self.script[:n]
         assert data, 'EOF'
         self.script = self.script[n:]
         return data
-        # data = []
-        # for _ in range(n):
-        #     data.append(self.script.popleft())
-        # return bytes(data)
 
     def pop(self):
+        """Pop top item from the stack"""
         return self.stack.pop()
 
     def push(self, item):
+        """Push item to the top of the stack"""
         self.stack.append(item)
 
     def op(self, opcode):
-        operation = self.OPS.get(opcode) or getattr(self, str(opcode))
+        """Execute an OPCODE (if implemented)."""
+        # Input is an OP enum value
+        operation = self.OPS.get(opcode) or getattr(self, str(opcode))  # look to self.OPS first and then in object methods
         if not operation:
             raise NotImplementedError
         else:
             operation()
 
     def step(self):
+        """Executes one script operation"""
         byte = bytes_to_int(self.read(1))
         opcode = OP(byte)
         self.op(opcode)
 
     def OP_PUSH(self, n):
+        """Push the next n bytes to the top of the stack"""
         self.push(self.read(n))
 
     def OP_DUP(self):
