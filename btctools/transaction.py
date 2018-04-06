@@ -101,14 +101,27 @@ class Transaction:
             tx = tx[x:]
             return data
 
+        def var_int():
+            """https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer"""
+            byte = pop(1)
+            if byte == b'\xfd':
+                result = pop(2)
+            elif byte == b'\xfe':
+                result = pop(4)
+            elif byte == b'\xff':
+                result = pop(8)
+            else:
+                result = byte
+            return bytes_to_int(result[::-1])
+
         version = pop(4)
-        input_count = bytes_to_int(pop(1))
+        input_count = var_int()
         inputs, outputs = [], []
 
         while input_count:
             tx_hash = pop(32)
             index = pop(4)
-            script_len = bytes_to_int(pop(1))
+            script_len = var_int()
             script = pop(script_len)
             sequence = pop(4)
 
@@ -121,7 +134,7 @@ class Transaction:
 
         while output_count:
             value = pop(8)
-            script_len = bytes_to_int(pop(1))
+            script_len = var_int()
             script = pop(script_len)
 
             out = Output(value=value, script=script)

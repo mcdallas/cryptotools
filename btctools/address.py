@@ -2,6 +2,7 @@ import hashlib
 from time import time
 from datetime import timedelta
 from functools import partial
+from typing import Union, Tuple
 
 from btctools import base58, bech32
 from ECDS.secp256k1 import generate_keypair, PublicKey
@@ -15,7 +16,7 @@ hash160 = lambda x: ripemd160(sha256(x))
 HRP = 'bc'
 
 
-def legacy_address(pub_or_script, version_byte):
+def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: int) -> str:
     """https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses"""
     bts = pub_or_script.encode(compressed=False) if isinstance(pub_or_script, PublicKey) else pub_or_script
     hashed = hash160(bts)
@@ -41,13 +42,13 @@ def legacy_address(pub_or_script, version_byte):
 #     return base58.encode(payload + checksum)
 
 
-def script_to_bech32(script, witver):
+def script_to_bech32(script: bytes, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = sha256(script)
     return bech32.encode(HRP, witver, witprog)
 
 
-def pubkey_to_bech32(pub, witver):
+def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = hash160(pub.encode(compressed=True))
     return bech32.encode(HRP, witver, witprog)
@@ -62,23 +63,23 @@ key_to_addr_versions = {
 
 script_to_addr_versions = {
     'P2SH': partial(legacy_address, version_byte=0x05),
-#    'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
+    # 'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
     'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=0x05),
     'P2WSH': partial(script_to_bech32, witver=0x00),
 }
 
 
-def pubkey_to_address(pub, version='P2PKH'):
+def pubkey_to_address(pub: PublicKey, version='P2PKH') -> str:
     converter = key_to_addr_versions[version.upper()]
     return converter(pub)
 
 
-def script_to_address(script, version='P2SH'):
+def script_to_address(script: bytes, version='P2SH') -> str:
     converter = script_to_addr_versions[version.upper()]
     return converter(script)
 
 
-def op_push(i):
+def op_push(i: int) -> bytes:
     """https://en.bitcoin.it/wiki/Script#Constants"""
     if i < 0x4c:
         return int_to_bytes(i)
@@ -90,16 +91,16 @@ def op_push(i):
         return b'\x4e' + int_to_bytes(i)
 
 
-def push(script):
+def push(script: bytes) -> bytes:
     return op_push(len(script)) + script
 
 
-def witness_byte(witver):
+def witness_byte(witver: int) -> bytes:
     assert 0 <= witver <= 16, "Witness version must be between 0-16"
     return int_to_bytes(witver + 0x50 if witver > 0 else 0)
 
 
-def address_to_script(addr):
+def address_to_script(addr: str) -> bytes:
     """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#segwit-address-format"""
     hrp, _ = bech32.bech32_decode(addr)
     if hrp not in ('bc', 'tb'):
@@ -112,7 +113,7 @@ def address_to_script(addr):
     return script
 
 
-def vanity(prefix):
+def vanity(prefix: str) -> Tuple[str, str, str]:
     """Generate a vanity address starting with the input (excluding the version byte)"""
     not_in_alphabet = {i for i in prefix if i not in base58.ALPHABET}
     assert not not_in_alphabet, f"Characters {not_in_alphabet} are not in alphabet"

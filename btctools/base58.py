@@ -23,4 +23,3 @@ def decode(b58: str) -> bytes:
         partial_sum += ALPHABET.index(digit) * BASE**exponent
         exponent += 1
     return int_to_bytes(partial_sum)
-

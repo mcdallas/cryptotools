@@ -60,17 +60,17 @@ class PrivateKey(message.Message):
 
 class PublicKey:
 
-    def __init__(self, point):
+    def __init__(self, point: Point):
         self.point = point
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'PublicKey') -> bool:
         return self.point == other.point
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"PublicKey({self.x}, {self.y})"
 
     @classmethod
-    def decode(cls, key):
+    def decode(cls, key: bytes):
         if key.startswith(b'\x04'):        # uncompressed key
             assert len(key) == 65, 'An uncompressed public key must be 65 bytes long'
             x, y = bytes_to_int(key[1:33]), bytes_to_int(key[33:])
@@ -89,11 +89,11 @@ class PublicKey:
 
     @classmethod
     def from_private(cls, prv):
-        key = PrivateKey(prv) if isinstance(prv, int) else prv
+        key = PrivateKey.from_int(prv) if isinstance(prv, int) else prv
         return key.to_public()
 
     @classmethod
-    def from_hex(cls, hexstring):
+    def from_hex(cls, hexstring: str):
         return cls.decode(hex_to_bytes(hexstring))
 
     @property
@@ -117,7 +117,7 @@ class PublicKey:
     def hex(self, compressed=False):
         return bytes_to_hex(self.encode(compressed=compressed))
 
-    def to_address(self, addrtype):
+    def to_address(self, addrtype: str):
         from btctools.address import pubkey_to_address
         return pubkey_to_address(self, addrtype)
 
@@ -130,7 +130,7 @@ def generate_keypair():
 
 class Message(message.Message):
 
-    def sign(self, private):
+    def sign(self, private: PrivateKey):
 
         e = hex_to_int(self.hash())
         r, s = 0, 0
@@ -144,7 +144,7 @@ class Message(message.Message):
 
         return message.Signature(r=r, s=s)
 
-    def verify(self, signature, public):
+    def verify(self, signature: message.Signature, public: PublicKey) -> bool:
 
         r, s = signature.r, signature.s
         if not (1 <= r < N and 1 <= s < N):
