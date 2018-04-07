@@ -5,7 +5,7 @@ from copy import deepcopy
 
 def pad(val, bytelength):
     if isinstance(val, bytes):
-        assert len(val) == bytelength, f"Value shoulf be {bytelength} bytes long"
+        assert len(val) == bytelength, f"Value should be {bytelength} bytes long"
         return val
     elif isinstance(val, int):
         return int_to_bytes(val).rjust(bytelength, b'\x00')
@@ -15,10 +15,10 @@ def pad(val, bytelength):
 
 class Input:
     def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', referenced_tx=None):
-        # parameters should be bytes as transmmited i.e reversed
+        # parameters should be bytes as transmitted i.e reversed
         assert isinstance(output, bytes) and len(output) == 32
         self.output = output[::-1]  # referenced tx hash
-        self.index = index if isinstance(index, int) else bytes_to_int(index)
+        self.index = index[::-1] if isinstance(index, int) else bytes_to_int(index[::-1])
         assert self.index <= 0xffffffff
         self.script = script
         self.sequence = sequence
@@ -53,7 +53,7 @@ class Input:
         self._index = pad(x, 4)
 
     def serialize(self):
-        return self.output[::-1] + self._index + self.script_length + self.script + self._sequence
+        return self.output[::-1] + self._index[::-1] + self.script_length + self.script + self._sequence
 
     @classmethod
     def deserialize(cls, bts):
@@ -267,7 +267,16 @@ class Transaction:
 
         return tx.serialize() + pad(hashcode.value, 4)[::-1]
 
-    def verify(self, i):
-        """Run the script for the i-th input"""
-        vm = VM(self, i)
-        return vm.verify()
+    def verify(self, i=None):
+        """Run the script for the i-th input or all the inputs"""
+        if i is not None:
+            vm = VM(self, i)
+            return vm.verify()
+        else:
+            results = []
+            for idx in range(len(self.inputs)):
+                vm = VM(self, idx)
+                results.append(vm.verify())
+
+            return all(results)
+
