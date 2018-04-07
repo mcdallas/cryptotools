@@ -7,6 +7,14 @@ from transformations import bytes_to_int, int_to_bytes, hash160, sha256
 
 
 @unique
+class SIGHASH(Enum):
+    ALL = 0x01
+    NONE = 0x02
+    SIGNLE = 0x03
+    ANYONECANPAY = 0x80
+
+
+@unique
 class OP(Enum):
 
     _0 = 0x00
@@ -218,8 +226,13 @@ class InvalidTransaction(Exception):
 class VM:
     """An environment to run the scripts"""
 
-    def __init__(self, script=b''):
-        self.script = script
+    def __init__(self, tx, index):
+        self.tx = tx
+        self.index = index
+        self.input = tx.inputs[index]
+        self.scriptPubKey = self.input.ref().script
+        self.scriptSig = self.input.script
+        self.script = self.scriptSig + self.scriptPubKey
         self.stack = []
         self.OPS = {OP(i): partial(self.OP_PUSH, i) for i in range(1, 76)}
         self.OPS.update({OP(i): lambda: self.push(int_to_bytes(i-80)) for i in range(82, 97)})
@@ -244,7 +257,7 @@ class VM:
         # Input is an OP enum value
         operation = self.OPS.get(opcode) or getattr(self, str(opcode))  # look to self.OPS first and then in object methods
         if not operation:
-            raise NotImplementedError
+            raise NotImplementedError(str(opcode))
         else:
             operation()
 
@@ -253,6 +266,11 @@ class VM:
         byte = bytes_to_int(self.read(1))
         opcode = OP(byte)
         self.op(opcode)
+
+    def verify(self):
+        while self.script:
+            self.step()
+        return self.stack[-1] is True
 
     def OP_PUSH(self, n):
         """Push the next n bytes to the top of the stack"""
@@ -293,10 +311,14 @@ class VM:
         self.op(OP.VERIFY)
 
     def OP_CHECKSIG(self):
-        try:
-            sig = Signature.decode(self.pop())
-            pub = PublicKey.decode(self.pop())
-            return sig.verify_hash(sha256(self.pop() + b'\x01\x00\x00\x00'), pub)
-        except:
-            return False
+        """https://en.bitcoin.it/wiki/OP_CHECKSIG"""
+        pub = PublicKey.decode(self.pop())
+        extended_sig = self.pop()
+        sig = Signature.decode(extended_sig[:-1])
+        hashcode = SIGHASH(extended_sig[-1])
+
+        signed_obj = self.tx.signature_form(i=self.index, hashcode=hashcode)
+        hashed = sha256(sha256(signed_obj))
+        self.push(sig.verify_hash(hashed, pub))
+
 

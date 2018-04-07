@@ -26,4 +26,5 @@ class TestTransaction(unittest.TestCase):
         assert len(trans.inputs) == 1
         assert len(trans.outputs) == 1
         assert trans.json()['txid'] == '96534da2f213367a6d589f18d7d6d1689748cd911f8c33a9aee754a80de166be'
+        assert trans.serialize() == tx
 

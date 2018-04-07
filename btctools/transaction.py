@@ -1,19 +1,59 @@
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
+from btctools.opcodes import SIGHASH, VM
+from copy import deepcopy
+
+
+def pad(val, bytelength):
+    if isinstance(val, bytes):
+        assert len(val) == bytelength, f"Value shoulf be {bytelength} bytes long"
+        return val
+    elif isinstance(val, int):
+        return int_to_bytes(val).rjust(bytelength, b'\x00')
+    else:
+        raise TypeError('Value should be bytes or int')
 
 
 class Input:
-    def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff'):
+    def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', referenced_tx=None):
+        # parameters should be bytes as transmmited i.e reversed
         assert isinstance(output, bytes) and len(output) == 32
-        self.output = output[::-1]
+        self.output = output[::-1]  # referenced tx hash
         self.index = index if isinstance(index, int) else bytes_to_int(index)
         assert self.index <= 0xffffffff
         self.script = script
-        self.script_length = int_to_bytes(len(script))
-        self._sequence = sequence
-        self.sequence = bytes_to_int(sequence)
+        self.sequence = sequence
+        self._referenced_tx = referenced_tx
+
+    def ref(self):
+        """The output that this input is spending"""
+        if self._referenced_tx is None or self._referenced_tx.txid() != self.output:
+            # Gets the transaction from bitcoin.info and caches the result
+            self._referenced_tx = Transaction.get(self.output)
+        return self._referenced_tx.outputs[self.index]
+
+    @property
+    def script_length(self):
+        return int_to_bytes(len(self.script))
+
+    @property
+    def sequence(self):
+        return bytes_to_int(self._sequence)
+
+    @sequence.setter
+    def sequence(self, x):
+        self._sequence = pad(x, 4)
+
+
+    @property
+    def index(self):
+        return bytes_to_int(self._index)
+
+    @index.setter
+    def index(self, x):
+        self._index = pad(x, 4)
 
     def serialize(self):
-        return self.output[::-1] + int_to_bytes(self.index).ljust(4, b'\x00') + self.script_length + self.script + self._sequence
+        return self.output[::-1] + self._index + self.script_length + self.script + self._sequence
 
     @classmethod
     def deserialize(cls, bts):
@@ -42,17 +82,23 @@ class Output:
     def __init__(self, value, script):
         if isinstance(value, bytes):
             assert len(value) == 8
-            self._value = value[::-1]
-            self.value = bytes_to_int(self._value)
-
-        elif isinstance(value, int):
-            self.value = value
-            self._value = int_to_bytes(self.value).rjust(8, b'\x00')
+            self.value = value[::-1]
         else:
-            raise AssertionError('Value should be bytes or int')
+            self.value = value
 
         self.script = script
-        self.script_len = len(script)
+
+    @property
+    def value(self):
+        return bytes_to_int(self._value)
+
+    @value.setter
+    def value(self, x):
+        self._value = pad(x, 8)
+
+    @property
+    def script_len(self):
+        return len(self.script)
 
     def serialize(self):
         return self._value[::-1] + int_to_bytes(self.script_len) + self.script
@@ -166,3 +212,62 @@ class Transaction:
             "vout": [out.json(i) for i, out in enumerate(self.outputs)]
         }
 
+    def hex(self):
+        return bytes_to_hex(self.serialize())
+
+    @classmethod
+    def from_hex(cls, hexstring):
+        return cls.deserialize(hex_to_bytes(hexstring))
+
+    @classmethod
+    def get(cls, txhash):
+        import urllib.request
+        if isinstance(txhash, bytes):
+            txhash = bytes_to_hex(txhash)
+        url = f"https://blockchain.info/rawtx/{txhash}?format=hex"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as resp:
+            assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
+            return cls.from_hex(resp.read().decode())
+
+    def signature_form(self, i, script=None, hashcode=SIGHASH.ALL):
+        """Create the object to be signed for the i-th input of this transaction"""
+        # We need to recreate the object that needs to be signed which is not the actual transaction
+        # More info at:
+        # https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695
+        # https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
+        # https://rya.nc/sartre.html
+        # https://bitcoin.stackexchange.com/questions/41209/how-to-sign-a-transaction-with-multiple-inputs
+        # https://en.bitcoin.it/wiki/OP_CHECKSIG
+        tx = deepcopy(self)
+
+        # the input references a previous output from which we need the scriptPubKey
+        # if it was not provided get it from blockchain.info
+        if script is None:
+            script = tx.inputs[i].ref().script
+
+        for input in tx.inputs:
+            input.script = b''
+
+        tx.inputs[i].script = script
+
+        # https://en.bitcoin.it/wiki/OP_CHECKSIG
+        if hashcode == SIGHASH.NONE:
+            tx.outputs = []
+        elif hashcode == SIGHASH.SIGNLE:
+            tx.outputs = tx.outputs[:len(tx.inputs)]
+            for output in tx.outputs:
+                output.script = b''
+                output.value = 2**64 - 1
+            for idx, input in enumerate(tx.inputs):
+                if not idx == i:
+                    input.sequence = 0
+        elif hashcode == SIGHASH.ANYONECANPAY:
+            tx.inputs = [tx.inputs[i]]
+
+        return tx.serialize() + pad(hashcode.value, 4)[::-1]
+
+    def verify(self, i):
+        """Run the script for the i-th input"""
+        vm = VM(self, i)
+        return vm.verify()

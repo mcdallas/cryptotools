@@ -93,9 +93,7 @@ class Signature:
         bts = bytes(data)
         s, rest = bytes_to_int(bts[:len_s]), bts[len_s:]
         assert len(rest) == 0, f'{len(rest)} leftover bytes'
-        # if rest:
-        #     sighash_type = bytes_to_int(rest)
-        #     assert sighash_type in (0x01, 0x02, 0x03, 0x81, 0x82, 0x83), 'Invalid sighash byte: 0x{sighash_type:x}'
+
         return cls(r, s)
 
     def encode(self):
@@ -123,6 +121,10 @@ class Signature:
 
         point = CURVE.G * u1 + pubkey.point * u2
         return self.r % N == point.x % N
+
+    @classmethod
+    def from_hex(cls, hexstring):
+        return cls.decode(hex_to_bytes(hexstring))
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.r}, {self.s})"
