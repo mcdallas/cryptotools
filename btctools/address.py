@@ -1,4 +1,3 @@
-import hashlib
 from time import time
 from datetime import timedelta
 from functools import partial
@@ -6,12 +5,7 @@ from typing import Union, Tuple
 
 from btctools import base58, bech32
 from ECDS.secp256k1 import generate_keypair, PublicKey
-from transformations import int_to_bytes
-
-
-sha256 = lambda x: hashlib.sha256(x).digest()
-ripemd160 = lambda x: hashlib.new('ripemd160', x).digest()
-hash160 = lambda x: ripemd160(sha256(x))
+from transformations import int_to_bytes, hash160, sha256
 
 HRP = 'bc'
 

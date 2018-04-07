@@ -1,9 +1,9 @@
 from enum import Enum, unique
 from functools import partial
 from copy import copy
-from btctools.address import hash160, sha256, PublicKey
+from ECDS.secp256k1 import PublicKey
 from message import Signature
-from transformations import bytes_to_int
+from transformations import bytes_to_int, int_to_bytes, hash160, sha256
 
 
 @unique
@@ -222,6 +222,7 @@ class VM:
         self.script = script
         self.stack = []
         self.OPS = {OP(i): partial(self.OP_PUSH, i) for i in range(1, 76)}
+        self.OPS.update({OP(i): lambda: self.push(int_to_bytes(i-80)) for i in range(82, 97)})
 
     def read(self, n):
         """Read and remove first n bytes from the script"""
@@ -295,7 +296,7 @@ class VM:
         try:
             sig = Signature.decode(self.pop())
             pub = PublicKey.decode(self.pop())
-            return sig.verify_hash(sha256(self.pop()), pub)
+            return sig.verify_hash(sha256(self.pop() + b'\x01\x00\x00\x00'), pub)
         except:
             return False
 

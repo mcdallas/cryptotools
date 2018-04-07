@@ -1,5 +1,4 @@
-from transformations import *
-from hashlib import sha256
+from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 
 
 class Input:
@@ -10,10 +9,11 @@ class Input:
         assert self.index <= 0xffffffff
         self.script = script
         self.script_length = int_to_bytes(len(script))
-        self.sequence = sequence
+        self._sequence = sequence
+        self.sequence = bytes_to_int(sequence)
 
     def serialize(self):
-        return self.output[::-1] + int_to_bytes(self.index).ljust(4, b'\x00') + self.script_length + self.script + self.sequence
+        return self.output[::-1] + int_to_bytes(self.index).ljust(4, b'\x00') + self.script_length + self.script + self._sequence
 
     @classmethod
     def deserialize(cls, bts):
@@ -33,7 +33,7 @@ class Input:
             "scriptSig": {
                 "hex": bytes_to_hex(self.script)
             },
-            "sequence": bytes_to_int(self.sequence)
+            "sequence": self.sequence
         }
 
 
@@ -42,9 +42,12 @@ class Output:
     def __init__(self, value, script):
         if isinstance(value, bytes):
             assert len(value) == 8
-            self.value = bytes_to_int(value[::-1])
+            self._value = value[::-1]
+            self.value = bytes_to_int(self._value)
+
         elif isinstance(value, int):
             self.value = value
+            self._value = int_to_bytes(self.value).rjust(8, b'\x00')
         else:
             raise AssertionError('Value should be bytes or int')
 
@@ -52,7 +55,7 @@ class Output:
         self.script_len = len(script)
 
     def serialize(self):
-        return int_to_bytes(self.value).rjust(8, b'\x00')[::-1] + int_to_bytes(self.script_len) + self.script
+        return self._value[::-1] + int_to_bytes(self.script_len) + self.script
 
     @classmethod
     def deserialize(cls, bts):
@@ -84,13 +87,15 @@ class Transaction:
         self.outputs = outputs
         assert len(version) == 4, 'Invalid Version'
         assert len(lock_time) == 4, 'Invalid lock time'
-        self.version = version[::-1]  # inversed
-        self.lock_time = lock_time[::-1]
+        self._version = version[::-1]
+        self.version = bytes_to_int(self._version)
+        self._lock_time = lock_time[::-1]
+        self.lock_time = bytes_to_int(self._lock_time)
 
     def serialize(self):
         inputs = b''.join((inp.serialize() for inp in self.inputs))
         outputs = b''.join((out.serialize() for out in self.outputs))
-        return self.version[::-1] + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + self.lock_time[::-1]
+        return self._version[::-1] + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + self._lock_time[::-1]
 
     @classmethod
     def deserialize(cls, tx: bytes) -> 'Transaction':
@@ -149,14 +154,14 @@ class Transaction:
         return f"{self.__class__.__name__}(inputs={len(self.inputs)}, outputs={len(self.outputs)})"
 
     def txid(self):
-        return sha256(sha256(self.serialize()).digest()).digest()
+        return sha256(sha256(self.serialize()))
 
     def json(self):
         return {
-            "txid": bytes_to_hex(self.txid()[::-1]),
-            "version": bytes_to_int(self.version),
+            "txid": bytes_to_hex(self.txid()[::-1]),  # TODO
+            "version": self.version,
             "size": len(self.serialize()),
-            "locktime": bytes_to_int(self.lock_time),
+            "locktime": self.lock_time,
             "vin": [inp.json() for inp in self.inputs],
             "vout": [out.json(i) for i, out in enumerate(self.outputs)]
         }

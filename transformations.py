@@ -1,5 +1,11 @@
 """Helper Functions to convert between data types"""
 
+import hashlib
+
+sha256 = lambda x: hashlib.sha256(x).digest()
+ripemd160 = lambda x: hashlib.new('ripemd160', x).digest()
+hash160 = lambda x: ripemd160(sha256(x))
+
 
 def bytes_to_int(bts):
     return int.from_bytes(bts, 'big')
