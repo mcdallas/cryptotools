@@ -3,7 +3,8 @@ import urllib.request
 import urllib.parse
 from lxml import etree
 
-from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, op_push
+from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script
+from btctools.script import op_push
 from ECDS.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from transformations import bytes_to_hex, int_to_str
 from btctools import bech32

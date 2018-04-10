@@ -3,6 +3,7 @@ from transformations import *
 from btctools.address import *
 from btctools.transaction import Transaction
 from btctools.opcodes import *
+from btctools.script import op_push, push
 
 __all__ = [
     'PrivateKey',

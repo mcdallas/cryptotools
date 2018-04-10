@@ -66,10 +66,10 @@ class TestSignature(unittest.TestCase):
         _, fake_public = generate_keypair()
         fake_message = Message.from_int(message.int() + 1)
 
-        self.assert_(message.verify(sig, public))
-        self.assert_(not message.verify(sig, fake_public))
-        self.assert_(not message.verify(fake_sig, public))
-        self.assert_(not fake_message.verify(sig, public))
+        self.assertTrue(message.verify(sig, public))
+        self.assertTrue(not message.verify(sig, fake_public))
+        self.assertTrue(not message.verify(fake_sig, public))
+        self.assertTrue(not fake_message.verify(sig, public))
 
     def test_encoding(self):
         raw_sig = hex_to_bytes('304402206878b5690514437a2342405029426cc2b25b4a03fc396fef845d656cf62bad2c022018610a8d37e3384245176ab49ddbdbe8da4133f661bf5ea7ad4e3d2b912d856f')
