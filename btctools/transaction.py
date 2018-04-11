@@ -39,7 +39,7 @@ def pad(val, bytelength):
 
 class Input:
     def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', witness=None, referenced_tx=None):
-        # parameters should be bytes as transmitted i.e reversed
+        # Parameters should be bytes as transmitted i.e reversed
         assert isinstance(output, bytes) and len(output) == 32
         self.output = output[::-1]  # referenced tx hash
         self.index = index[::-1] if isinstance(index, int) else bytes_to_int(index[::-1])
@@ -47,7 +47,7 @@ class Input:
         self.script = script
         self.sequence = sequence
         self._referenced_tx = referenced_tx
-        # assert not witness or (all((len(item) <= 520 for item in witness)) and len(witness) == 2), 'Invalid witness'  TODO: test items in witness < 520 bytes
+        assert not witness or (all((len(item) <= 520 for item in witness)) and len(witness) == 2), 'Invalid witness'
         self.witness = witness
 
     def ref(self):
@@ -120,6 +120,7 @@ class Input:
 class Output:
 
     def __init__(self, value, script):
+        # Parameters should be bytes as transmitted i.e reversed
         if isinstance(value, bytes):
             assert len(value) == 8
             self.value = value[::-1]

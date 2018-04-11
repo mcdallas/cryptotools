@@ -169,8 +169,7 @@ class TestTransaction(unittest.TestCase):
         assert trans.hex() == tx
         assert trans.json()['txid'] == txid
         assert trans.json()['size'] == 599
-        i1 = trans.inputs[0]
-        i2 = trans.inputs[1]
+        i1, i2, i3 = trans.inputs
         assert i1.json()['witness'] == [
                 "30440220629a1afef02a3c9c7e9988557b847759b6937f60740fc3ed11fa21601f9be4fa02200ad54d20172bea8dfa16dc8ebc7fcd49ebbddc1b3b8da189bfdc0e02022be75301",
                 "02dc31388cc2fe58ecdbbc57c3c8c8b28a8797b2aeb6ac235c6ea654223f661e51"
@@ -181,8 +180,7 @@ class TestTransaction(unittest.TestCase):
                 "037e4c93a8f7f48647af7c6c0651714516f4ff4d991e40f5cb9a76d150460a7c4a"
             ]
         assert i2.sequence == 4294967295
-        o1 = trans.outputs[0]
-        o2 = trans.outputs[1]
+        o1, o2, o3 = trans.outputs
         assert o1.json()['scriptPubKey']['hex'] == "a914bbc85a4bfb82a4a1771cd2b22b791d9a3a61c30187"
         assert o2.value == 0.26610337 * 10**8
 
