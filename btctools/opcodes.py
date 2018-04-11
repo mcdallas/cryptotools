@@ -10,6 +10,20 @@ class SIGHASH(Enum):
 
 
 @unique
+class TX(Enum):
+    P2PK = 'P2PK'
+    P2PKH = 'P2PKH'
+    P2SH = 'P2SH'
+    P2WPKH = 'P2WPKH'
+    P2WSH = 'P2WSH'
+    UNKNOWN = None
+
+    def __repr__(self):
+        return '<%s.%s>' % (self.__class__.__name__, self.name)
+
+
+
+@unique
 class OP(Enum):
 
     _0 = 0x00

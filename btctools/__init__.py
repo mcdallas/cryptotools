@@ -4,7 +4,7 @@ from transformations import *
 from btctools.address import *
 from btctools.transaction import Transaction, SerializationError
 from btctools.opcodes import *
-from btctools.script import op_push, push, VM
+from btctools.script import op_push, push, VM, asm
 
 __all__ = [
     'PrivateKey',
@@ -21,6 +21,7 @@ __all__ = [
     'OP',
     'SIGHASH',
     'VM',
+    'asm',
     'sha256',
     'ripemd160',
     'hash160',

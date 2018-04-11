@@ -1,9 +1,9 @@
 from functools import partial
-from copy import copy
+from copy import copy, deepcopy
 from ECDS.secp256k1 import PublicKey
 from message import Signature
-from transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hash160, sha256
-from btctools.opcodes import OP, SIGHASH
+from transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hex_to_bytes, hash160, sha256
+from btctools.opcodes import OP, SIGHASH, TX
 
 
 def op_push(i: int) -> bytes:
@@ -29,7 +29,10 @@ def witness_byte(witver: int) -> bytes:
 
 def asm(script):
     """Turns a script into a symbolic representation"""
-    script = copy(script)
+    if isinstance(script, str):
+        script = hex_to_bytes(script)
+    else:
+        script = copy(script)
 
     def read(n):
         nonlocal script
@@ -70,7 +73,7 @@ class VM:
         self.script = self.scriptSig + self.scriptPubKey
         self.stack = []
         self.OPS = {OP(i): partial(self.OP_PUSH, i) for i in range(1, 76)}
-        self.OPS.update({OP(i): lambda: self.push(int_to_bytes(i-80)) for i in range(82, 97)})
+        self.OPS.update({OP(i): lambda: self.push(int_to_bytes(i-80)) for i in range(81, 97)})
 
     def read(self, n):
         """Read and remove first n bytes from the script"""
@@ -107,9 +110,33 @@ class VM:
         self.op(opcode)
 
     def verify(self):
+        tx_type = self.input.ref().type()
+        if tx_type == TX.P2PKH:
+            return self.verify_p2pkh()
+        elif tx_type == TX.P2SH:
+            return self.verify_p2sh()
+        else:
+            raise InvalidTransaction
+
+    def verify_p2pkh(self):
         while self.script:
             self.step()
         return self.pop() is True
+
+    def verify_p2sh(self):
+        self.step()
+        self.step()
+        self.step()
+
+        state = VM(self.tx, self.index)
+        state.stack = deepcopy(self.stack)
+        state.script = state.pop()
+
+        first_verification = self.verify_p2pkh()
+        if first_verification is False:
+            return False
+
+        return state.verify_p2pkh()
 
     def OP_PUSH(self, n):
         """Push the next n bytes to the top of the stack"""

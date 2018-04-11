@@ -1,7 +1,7 @@
 from copy import deepcopy, copy
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
-from btctools.opcodes import SIGHASH
+from btctools.opcodes import SIGHASH, TX
 from btctools.script import VM, asm
 
 
@@ -148,6 +148,15 @@ class Output:
 
     def asm(self):
         return asm(self.script)
+
+    def type(self):
+        if self.script.startswith(b'\xa9') and self.script.endswith(b'\x87') and len(self.script) == 23:
+            return TX.P2SH
+        elif self.script.startswith(b'\x76\xa9') and self.script.endswith(b'\x88\xac') and len(self.script) == 25:
+            return TX.P2PKH
+        else:
+            return TX.UNKNOWN
+
 
     def __repr__(self):
         return f"{self.__class__.__name__}(value={self.value/10**8} BTC)"
