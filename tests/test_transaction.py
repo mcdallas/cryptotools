@@ -1,6 +1,7 @@
 import unittest
 from btctools.transaction import Transaction
 from transformations import *
+from time import sleep
 
 
 class TestTransaction(unittest.TestCase):
@@ -123,19 +124,20 @@ class TestTransaction(unittest.TestCase):
             '12b5633bad1f9c167d523ad1aa1947b2732a865bf5414eab2f9e5ae5d5c191ba',
             # 'a38d3393a32d06fe842b35ebd68aa2b6a1ccbabbbc244f67462a10fd8c81dba5',  # coinbase
             # 'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
-            # 'bf89a7da2d8960848b32c173a93dced34eab412599f06cceb0b990879e3d1853'   # spends segwit outputs
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
             # 'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'  # 24 inputs 7 outputs
             # '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214'  # sends to P2SH and P2WPKH
+            # 'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f'  # attack tx
         ]
 
         for tx_id in tx_ids:
             tx = Transaction.get(tx_id)
             assert tx.verify(), f"{tx_id}"
+            sleep(0.25)
 
-    def test_deserialize_segwit(self):
+    def test_deserialize_p2wpkh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Example"""
         # https://bitcoincore.org/en/segwit_wallet_dev/#basic-segregated-witness-support
         # https://bitcoin.stackexchange.com/questions/68413/how-do-i-determine-whether-an-input-or-output-is-segwit
@@ -164,3 +166,4 @@ class TestTransaction(unittest.TestCase):
         o2 = trans.outputs[1]
         assert o1.json()['scriptPubKey']['hex'] == "a914bbc85a4bfb82a4a1771cd2b22b791d9a3a61c30187"
         assert o2.value == 0.26610337 * 10**8
+
