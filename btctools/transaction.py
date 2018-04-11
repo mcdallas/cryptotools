@@ -1,6 +1,26 @@
+from copy import deepcopy, copy
+
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
-from btctools.opcodes import SIGHASH, VM
-from copy import deepcopy
+from btctools.opcodes import SIGHASH
+from btctools.script import VM
+
+
+def diff(a, b):
+    for idx, (i, j) in enumerate(zip(a, b)):
+        if i != j:
+            print(f"diff at index {idx}: {i} vs {j}")
+
+
+class TransactionError(Exception):
+    def __init__(self, message, tx=None, data=None, txhash=None):
+        self.message = message
+        self.tx = tx
+        self.data = data
+        self.txhash = txhash
+
+
+class SerializationError(TransactionError):
+    pass
 
 
 def pad(val, bytelength):
@@ -14,7 +34,7 @@ def pad(val, bytelength):
 
 
 class Input:
-    def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', referenced_tx=None):
+    def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', witness=None, referenced_tx=None):
         # parameters should be bytes as transmitted i.e reversed
         assert isinstance(output, bytes) and len(output) == 32
         self.output = output[::-1]  # referenced tx hash
@@ -23,6 +43,7 @@ class Input:
         self.script = script
         self.sequence = sequence
         self._referenced_tx = referenced_tx
+        self.witness = witness
 
     def ref(self):
         """The output that this input is spending"""
@@ -30,6 +51,10 @@ class Input:
             # Gets the transaction from bitcoin.info and caches the result
             self._referenced_tx = Transaction.get(self.output)
         return self._referenced_tx.outputs[self.index]
+
+    @property
+    def segwit(self):
+        return bool(self.witness)
 
     @property
     def script_length(self):
@@ -43,7 +68,6 @@ class Input:
     def sequence(self, x):
         self._sequence = pad(x, 4)
 
-
     @property
     def index(self):
         return bytes_to_int(self._index)
@@ -54,6 +78,14 @@ class Input:
 
     def serialize(self):
         return self.output[::-1] + self._index[::-1] + self.script_length + self.script + self._sequence
+
+    def serialize_witness(self):
+        if not self.segwit:
+            return b'\x00'
+        result = int_to_bytes(len(self.witness))
+        for stack_item in self.witness:
+            result += int_to_bytes(len(stack_item)) + stack_item
+        return result
 
     @classmethod
     def deserialize(cls, bts):
@@ -67,14 +99,17 @@ class Input:
         return f"{self.__class__.__name__}(from={bytes_to_hex(self.output)})"
 
     def json(self):
-        return {
+        result = {
             "txid": bytes_to_hex(self.output),
             "vout": self.index,
             "scriptSig": {
                 "hex": bytes_to_hex(self.script)
-            },
-            "sequence": self.sequence
+            }
         }
+        if self.segwit:
+            result['witness'] = [bytes_to_hex(wit) for wit in self.witness]
+        result["sequence"] = self.sequence
+        return result
 
 
 class Output:
@@ -138,21 +173,40 @@ class Transaction:
         self._lock_time = lock_time[::-1]
         self.lock_time = bytes_to_int(self._lock_time)
 
-    def serialize(self):
+    @property
+    def segwit(self):
+        return any((inp.segwit for inp in self.inputs))
+
+    def serialize(self, segwit=None):
+        if segwit is None:
+            segwit = self.segwit
         inputs = b''.join((inp.serialize() for inp in self.inputs))
         outputs = b''.join((out.serialize() for out in self.outputs))
-        return self._version[::-1] + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + self._lock_time[::-1]
+        if not segwit:
+            return self._version[::-1] + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + self._lock_time[::-1]
+        witness = b''.join((inp.serialize_witness() for inp in self.inputs))
+        return self._version[::-1] + b'\x00\x01' + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + witness + self._lock_time[::-1]
 
     @classmethod
     def deserialize(cls, tx: bytes) -> 'Transaction':
+        original_tx = copy(tx)
+        try:
+            return cls._deserialize(tx)
+        except AssertionError as e:
+            raise SerializationError(str(e), data=original_tx) from None
+
+    @classmethod
+    def _deserialize(cls, tx: bytes) -> 'Transaction':
+        segwit = False
+
         def pop(x):
             nonlocal tx
             data = tx[:x]
-            assert data, 'EOF'
+            assert data or x == 0, 'EOF'
             tx = tx[x:]
             return data
 
-        def var_int():
+        def read_var_int():
             """https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer"""
             byte = pop(1)
             if byte == b'\xfd':
@@ -166,41 +220,63 @@ class Transaction:
             return bytes_to_int(result[::-1])
 
         version = pop(4)
-        input_count = var_int()
-        inputs, outputs = [], []
+        input_count = read_var_int()
+        if input_count == 0x00:
+            segwit = True
 
-        while input_count:
+            flag = pop(1)
+            assert flag == b'\x01'
+            input_count = read_var_int()
+
+        inputs, outputs, witnesses = [], [], []
+
+        for _ in range(input_count):
             tx_hash = pop(32)
             index = pop(4)
-            script_len = var_int()
+            script_len = read_var_int()
             script = pop(script_len)
             sequence = pop(4)
 
-            inp = Input(output=tx_hash, index=index, script=script, sequence=sequence)
+            inp = Input(output=tx_hash, index=index, script=script, sequence=sequence, witness=None)
             inputs.append(inp)
-
-            input_count -= 1
 
         output_count = bytes_to_int(pop(1))
 
-        while output_count:
+        for _ in range(output_count):
             value = pop(8)
-            script_len = var_int()
+            script_len = read_var_int()
             script = pop(script_len)
 
             out = Output(value=value, script=script)
             outputs.append(out)
-            output_count -= 1
+
+        if segwit:
+            for inp in inputs:
+                len_witness = read_var_int()
+
+                elements = []
+                for _ in range(len_witness):
+                    element_len = read_var_int()
+                    element = pop(element_len)
+                    elements.append(element)
+
+                if elements:
+                    inp.witness = elements
 
         lock_time = pop(4)
-        assert not tx, 'Leftover bytes'
+        assert not tx, f"{len(tx)} Leftover bytes"
         return cls(inputs=inputs, outputs=outputs, version=version, lock_time=lock_time)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(inputs={len(self.inputs)}, outputs={len(self.outputs)})"
 
     def txid(self):
-        return sha256(sha256(self.serialize()))
+        return sha256(sha256(self.serialize(segwit=False)))
+
+    def wtxid(self):
+        if not self.segwit:
+            return self.txid()
+        return sha256(sha256(self.serialize(segwit=True)))
 
     def json(self):
         return {
@@ -228,7 +304,11 @@ class Transaction:
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req) as resp:
             assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
-            return cls.from_hex(resp.read().decode())
+            try:
+                return cls.from_hex(resp.read().decode())
+            except SerializationError as e:
+                e.txhash = txhash
+                raise e
 
     def signature_form(self, i, script=None, hashcode=SIGHASH.ALL):
         """Create the object to be signed for the i-th input of this transaction"""
