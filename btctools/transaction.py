@@ -23,6 +23,10 @@ class SerializationError(TransactionError):
     pass
 
 
+class ValidationError(TransactionError):
+    pass
+
+
 def pad(val, bytelength):
     if isinstance(val, bytes):
         assert len(val) == bytelength, f"Value should be {bytelength} bytes long"
@@ -43,6 +47,7 @@ class Input:
         self.script = script
         self.sequence = sequence
         self._referenced_tx = referenced_tx
+        # assert not witness or (all((len(item) <= 520 for item in witness)) and len(witness) == 2), 'Invalid witness'  TODO: test items in witness < 520 bytes
         self.witness = witness
 
     def ref(self):
@@ -150,16 +155,22 @@ class Output:
         return asm(self.script)
 
     def type(self):
-        if self.script.startswith(b'\xa9') and self.script.endswith(b'\x87') and len(self.script) == 23:
+        """https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/script/script.cpp#L202"""
+        if self.script.startswith(b'\xa9\x14') and self.script.endswith(b'\x87') and len(self.script) == 23:
             return TX.P2SH
         elif self.script.startswith(b'\x76\xa9') and self.script.endswith(b'\x88\xac') and len(self.script) == 25:
             return TX.P2PKH
+        elif self.script.startswith(b'\x00 ') and len(self.script) == 34:
+            return TX.P2WSH
+        elif self.script.startswith(b'\x00 ') and len(self.script) == 22:
+            return TX.P2WPKH
+        elif self.script.startswith(b'A') and self.script.endswith(b'\xac') and len(self.script) == 67:
+            return TX.P2PK
         else:
-            return TX.UNKNOWN
-
+            raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(value={self.value/10**8} BTC)"
+        return f"{self.__class__.__name__}(type={self.type()}, value={self.value/10**8} BTC)"
 
     def json(self, index=None):
         data = {

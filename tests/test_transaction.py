@@ -128,7 +128,7 @@ class TestTransaction(unittest.TestCase):
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
             # 'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'  # 24 inputs 7 outputs
-            # '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214'  # sends to P2SH and P2WPKH
+            # '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214'  # sends to P2SH and P2WSH
             # 'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f'  # attack tx
         ]
 

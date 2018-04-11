@@ -111,14 +111,14 @@ class VM:
 
     def verify(self):
         tx_type = self.input.ref().type()
-        if tx_type == TX.P2PKH:
-            return self.verify_p2pkh()
+        if tx_type in (TX.P2PKH, TX.P2PK):
+            return self.verify_legacy()
         elif tx_type == TX.P2SH:
             return self.verify_p2sh()
         else:
-            raise InvalidTransaction
+            raise InvalidTransaction(f"Unknown transaction type {tx_type}")
 
-    def verify_p2pkh(self):
+    def verify_legacy(self):
         while self.script:
             self.step()
         return self.pop() is True
@@ -130,13 +130,13 @@ class VM:
 
         state = VM(self.tx, self.index)
         state.stack = deepcopy(self.stack)
-        state.script = state.pop()
+        state.script = state.pop()  # redeem script
 
-        first_verification = self.verify_p2pkh()
+        first_verification = self.verify_legacy()
         if first_verification is False:
             return False
 
-        return state.verify_p2pkh()
+        return state.verify_legacy()
 
     def OP_PUSH(self, n):
         """Push the next n bytes to the top of the stack"""

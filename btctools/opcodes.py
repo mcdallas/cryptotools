@@ -16,11 +16,9 @@ class TX(Enum):
     P2SH = 'P2SH'
     P2WPKH = 'P2WPKH'
     P2WSH = 'P2WSH'
-    UNKNOWN = None
 
     def __repr__(self):
         return '<%s.%s>' % (self.__class__.__name__, self.name)
-
 
 
 @unique
@@ -138,7 +136,6 @@ class OP(Enum):
     NOP10 = 0xb9
     INVALIDOPCODE = 0xff
 
-
     PUSH1 = 0x01
     PUSH2 = 0x02
     PUSH3 = 0x03
@@ -222,6 +219,3 @@ class OP(Enum):
     def __repr__(self):
         s = super().__repr__()
         return s.replace('.', '_').replace('__', '_')
-
-
-
