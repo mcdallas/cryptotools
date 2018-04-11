@@ -2,7 +2,7 @@ from ECDS.secp256k1 import *
 from message import Signature
 from transformations import *
 from btctools.address import *
-from btctools.transaction import Transaction
+from btctools.transaction import Transaction, SerializationError
 from btctools.opcodes import *
 from btctools.script import op_push, push, VM
 
@@ -27,6 +27,7 @@ __all__ = [
     'Signature',
     'Message',
     'Transaction',
+    'SerializationError',
     'bytes_to_hex',
     'bytes_to_int',
     'bytes_to_str',

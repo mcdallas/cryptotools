@@ -2,7 +2,7 @@ from copy import deepcopy, copy
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from btctools.opcodes import SIGHASH
-from btctools.script import VM
+from btctools.script import VM, asm
 
 
 def diff(a, b):
@@ -146,6 +146,9 @@ class Output:
         assert not rest, 'Invalid output format'
         return cls(value=value, script=script)
 
+    def asm(self):
+        return asm(self.script)
+
     def __repr__(self):
         return f"{self.__class__.__name__}(value={self.value/10**8} BTC)"
 
@@ -155,7 +158,10 @@ class Output:
         }
         if index:
             data["n"] = index
-        data["scriptPubKey"] = {"hex": bytes_to_hex(self.script)}
+        data["scriptPubKey"] = {
+            "hex": bytes_to_hex(self.script),
+            "asm": self.asm()
+        }
         return data
 
 
@@ -172,6 +178,9 @@ class Transaction:
         self.version = bytes_to_int(self._version)
         self._lock_time = lock_time[::-1]
         self.lock_time = bytes_to_int(self._lock_time)
+
+    def __len__(self):
+        return len(self.serialize())
 
     @property
     def segwit(self):

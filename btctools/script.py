@@ -2,7 +2,7 @@ from functools import partial
 from copy import copy
 from ECDS.secp256k1 import PublicKey
 from message import Signature
-from transformations import bytes_to_int, int_to_bytes, hash160, sha256
+from transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hash160, sha256
 from btctools.opcodes import OP, SIGHASH
 
 
@@ -25,6 +25,29 @@ def push(script: bytes) -> bytes:
 def witness_byte(witver: int) -> bytes:
     assert 0 <= witver <= 16, "Witness version must be between 0-16"
     return int_to_bytes(witver + 0x50 if witver > 0 else 0)
+
+
+def asm(script):
+    """Turns a script into a symbolic representation"""
+    script = copy(script)
+
+    def read(n):
+        nonlocal script
+        data = script[:n]
+        assert data or n == 0, 'EOF'
+        script = script[n:]
+        return data
+
+    results = []
+    while script:
+        byte = bytes_to_int(read(1))
+        op = OP(byte)
+        if byte in range(1, 76):
+            results.append(bytes_to_hex(read(byte)))
+        else:
+            results.append(str(op))
+
+    return ' '.join(results)
 
 
 class OperationFailure(Exception):
@@ -57,6 +80,9 @@ class VM:
         self.script = self.script[n:]
         return data
 
+    def asm(self):
+        return asm(self.script)
+
     def pop(self):
         """Pop top item from the stack"""
         return self.stack.pop()
@@ -68,7 +94,7 @@ class VM:
     def op(self, opcode):
         """Execute an OPCODE (if implemented)."""
         # Input is an OP enum value
-        operation = self.OPS.get(opcode) or getattr(self, str(opcode))  # look to self.OPS first and then in object methods
+        operation = self.OPS.get(opcode) or getattr(self, str(opcode), None)  # look to self.OPS first and then in object methods
         if not operation:
             raise NotImplementedError(str(opcode))
         else:
@@ -133,3 +159,7 @@ class VM:
         signed_obj = self.tx.signature_form(i=self.index, hashcode=hashcode)
         hashed = sha256(sha256(signed_obj))
         self.push(sig.verify_hash(hashed, pub))
+
+    def OP_0(self):
+        """An empty array of bytes is pushed onto the stack. (This is not a no-op: an item is added to the stack.)"""
+        self.push(b'')
