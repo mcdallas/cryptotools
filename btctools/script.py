@@ -187,7 +187,8 @@ class VM:
             raise InvalidTransaction(f'Invalid witness for a {TX.P2WPKH} transaction')
 
         self.stack = wit
-        self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'  # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+        # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+        self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
 
         return self.verify_legacy()
 
@@ -240,9 +241,10 @@ class VM:
         sig = Signature.decode(extended_sig[:-1])
         hashcode = SIGHASH(extended_sig[-1])
 
-        signed_obj = self.tx.signature_form(i=self.index, hashcode=hashcode)
-        hashed = sha256(sha256(signed_obj))
-        self.push(sig.verify_hash(hashed, pub))
+        # signed_obj = self.tx.signature_form(i=self.index, hashcode=hashcode)
+        # hashed = sha256(sha256(signed_obj))
+        sighash = self.tx.sighash(i=self.index, hashcode=hashcode)
+        self.push(sig.verify_hash(sighash, pub))
 
     def OP_0(self):
         """An empty array of bytes is pushed onto the stack. (This is not a no-op: an item is added to the stack.)"""

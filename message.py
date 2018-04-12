@@ -131,3 +131,6 @@ class Signature:
 
     def __eq__(self, other):
         return self.r == other.r and self.s == other.s
+
+    def hex(self):
+        return bytes_to_hex(self.encode())

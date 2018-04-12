@@ -3,6 +3,7 @@ from copy import deepcopy, copy
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from btctools.opcodes import SIGHASH, TX
 from btctools.script import VM, asm, witness_program, push, pad
+from ECDS.secp256k1 import PrivateKey
 
 
 concat = b''.join
@@ -46,6 +47,13 @@ class Input:
     @property
     def segwit(self):
         return bool(self.witness)
+        # if bool(self.witness) and not bool(self.script):
+        #     return True
+        # elif bool(self.script) and not bool(self.witness):
+        #     return False
+        # else:
+        #     return self.ref().type() in (TX.P2WPKH, TX.P2WSH)
+
 
     @property
     def script_length(self):
@@ -161,7 +169,9 @@ class Output:
             return TX.P2WSH
         elif self.script.startswith(b'\x00\x14') and len(self.script) == 22:
             return TX.P2WPKH
-        elif self.script.startswith(b'\x41') and self.script.endswith(b'\xac') and len(self.script) == 67:
+        elif self.script.startswith(b'\x41\x04') and self.script.endswith(b'\xac') and len(self.script) == 67:  # uncompressed PK
+            return TX.P2PK
+        elif self.script.startswith((b'\x21\x03', b'\x21\x02')) and self.script.endswith(b'\xac') and len(self.script) == 35:  # compressed PK
             return TX.P2PK
         else:
             raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")
@@ -341,7 +351,18 @@ class Transaction:
                 e.txhash = txhash
                 raise e
 
-    def signature_form(self, i, script=None, hashcode=SIGHASH.ALL):
+    def sighash(self, i, hashcode=SIGHASH.ALL):
+        inp = self.inputs[i]
+        tx_type = inp.ref().type()
+
+        if tx_type in (TX.P2PK, TX.P2PKH, TX.P2SH):
+            preimage = self.signature_form_legacy(i=i, hashcode=hashcode)
+        else:
+            preimage = self.signature_form_segwit(i=i, hashcode=hashcode)
+
+        return sha256(sha256(preimage))
+
+    def signature_form_legacy(self, i, script=None, hashcode=SIGHASH.ALL):
         """Create the object to be signed for the i-th input of this transaction"""
         # Recreates the object that needs to be signed which is not the actual transaction
         # More info at:
@@ -378,7 +399,7 @@ class Transaction:
 
         return tx.serialize() + pad(hashcode.value, 4)[::-1]
 
-    def digest(self, i, ref=None, hashtype=SIGHASH.ALL):
+    def signature_form_segwit(self, i, ref=None, hashcode=SIGHASH.ALL):
         """Segwit version of signature_form"""
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
         tx = deepcopy(self)
@@ -387,25 +408,29 @@ class Transaction:
             ref = tx.inputs[i].ref()
 
         nversion = tx._version[::-1]
-        hashprevouts = sha256(sha256(concat((inp.outpoint() for inp in tx.inputs)))) if hashtype != SIGHASH.ANYONECANPAY else pad(0, 32)
-        hashsequence = sha256(sha256(concat(inp._sequence[::-1] for inp in tx.inputs))) if hashtype == SIGHASH.ALL else pad(0, 32)
+        hashprevouts = sha256(sha256(concat((inp.outpoint() for inp in tx.inputs)))) if hashcode != SIGHASH.ANYONECANPAY else pad(0, 32)
+        hashsequence = sha256(sha256(concat(inp._sequence[::-1] for inp in tx.inputs))) if hashcode == SIGHASH.ALL else pad(0, 32)
         outpoint = tx.inputs[i].outpoint()
         scriptcode = ref.scriptcode()
         value = ref._value[::-1]
         nsequence = tx.inputs[i]._sequence[::-1]
 
-        if hashtype not in (SIGHASH.SIGNLE, SIGHASH.NONE):
+        if hashcode not in (SIGHASH.SIGNLE, SIGHASH.NONE):
             hashoutputs = sha256(sha256(concat(out._value[::-1] + push(out.script) for out in tx.outputs)))
-        elif hashtype == SIGHASH.SIGNLE and i >= len(tx.outputs):
+        elif hashcode == SIGHASH.SIGNLE and i >= len(tx.outputs):
             hashoutputs = sha256(sha256(tx.outputs[i]._value[::-1] + push(tx.outputs[i].script)))
         else:
             hashoutputs = pad(0, 32)
 
         nlocktime = tx._lock_time[::-1]
-        sighash = pad(hashtype.value, 4)[::-1]
+        sighash = pad(hashcode.value, 4)[::-1]
 
-        preimage = concat([nversion, hashprevouts, hashsequence, outpoint, scriptcode, value, nsequence, hashoutputs, nlocktime, sighash])
-        return sha256(sha256(preimage))
+        return concat([nversion, hashprevouts, hashsequence, outpoint, scriptcode, value, nsequence, hashoutputs, nlocktime, sighash])
+
+    def sign(self, i: int, private: PrivateKey, hashcode=SIGHASH.ALL):
+        """Sign the i-th input"""
+        digest = self.sighash(i=i, hashcode=hashcode)
+        return private.sign_hash(digest)
 
     def verify(self, i=None):
         """Run the script for the i-th input or all the inputs"""

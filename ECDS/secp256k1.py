@@ -57,6 +57,19 @@ class PrivateKey(message.Message):
     def __repr__(self):
         return f"PrivateKey({self.msg})"
 
+    def sign_hash(self, hash):
+        e = hex_to_int(hash) if isinstance(hash, str) else bytes_to_int(hash)
+        r, s = 0, 0
+        while r == 0 or s == 0:
+            k = secrets.randbelow(N)
+            point = CURVE.G * k
+            r = point.x % N
+
+            inv_k = mulinv(k, N)
+            s = (inv_k * (e + r * self.int())) % N
+
+        return message.Signature(r=r, s=s)
+
 
 class PublicKey:
 

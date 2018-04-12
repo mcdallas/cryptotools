@@ -1,5 +1,6 @@
 import unittest
 from btctools.transaction import Transaction, Output
+from ECDS.secp256k1 import PrivateKey
 from transformations import *
 from time import sleep
 
@@ -188,9 +189,16 @@ class TestTransaction(unittest.TestCase):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#native-p2wpkh"""
 
         tx = Transaction.from_hex('0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f0000000000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000')
-        ref = Output(6 * 10 ** 8, hex_to_bytes('00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'))
+        ref1 = Output(6 * 10 ** 8, hex_to_bytes('00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'))
 
-        assert bytes_to_hex(tx.digest(1, ref=ref)) == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
+        sighash = sha256(sha256(tx.signature_form_segwit(1, ref=ref1)))
+
+        assert bytes_to_hex(sighash) == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
+        private = PrivateKey.from_hex('619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9')
+        public = private.to_public()
+
+        sig = private.sign_hash(sighash)
+        assert sig.verify_hash(sighash, public)
 
 
     def test_p2wpkh(self):
@@ -200,4 +208,4 @@ class TestTransaction(unittest.TestCase):
         ref = Transaction.from_hex('0100000001b0ac96e3731db370c5ca83bad90a427d1687b65bc89fa2aef2ceeb567511e59f000000006a473044022021483045c74332e0cdf2ba3c46a7ed2abdfd7a04cd3eef79238e394a9285c8c00220536adca2c48231fa8be7fa0a24e75b0f8ecced44967652e89dd19f7fd03617a70121038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990acffffffff05a8f8c223000000001976a9141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92888ac00e1f505000000001600141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92800e1f5050000000022002001d5d92effa6ffba3efa379f9830d0f75618b13393827152d26e4309000e88b100e1f5050000000017a914901c8694c03fafd5522810e0330f26e67a8533cd8700e1f5050000000017a91485b9ff0dcb34cf513d6412c6cf4d76d9dc2401378700000000')
 
         tx.inputs[0]._referenced_tx = ref
-        # assert tx.verify()
+        assert tx.verify()
