@@ -27,6 +27,29 @@ def witness_byte(witver: int) -> bytes:
     return int_to_bytes(witver + 0x50 if witver > 0 else 0)
 
 
+def is_witness_program(script):
+    """https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/script/script.cpp#L221"""
+    if len(script) < 4 or len(script) > 42:
+        return False
+    if script[0] != OP._0.value and (script[0] < OP._1.value or script[0] > OP._16.value):
+        return False
+    if script[1] < 0x02 or script[1] > 0x28:
+        return False
+    return True
+
+
+def witness_program(script):
+    if not is_witness_program(script):
+        raise InvalidTransaction("Script is ot a witness program")
+    return script[2:]
+
+
+def version_byte(script):
+    if not is_witness_program(script):
+        raise InvalidTransaction("Script is ot a witness program")
+    return script[0]
+
+
 def asm(script):
     """Turns a script into a symbolic representation"""
     if isinstance(script, str):
@@ -53,6 +76,16 @@ def asm(script):
     return ' '.join(results)
 
 
+def pad(val, bytelength):
+    if isinstance(val, bytes):
+        assert len(val) == bytelength, f"Value should be {bytelength} bytes long"
+        return val
+    elif isinstance(val, int):
+        return int_to_bytes(val).rjust(bytelength, b'\x00')
+    else:
+        raise TypeError('Value should be bytes or int')
+
+
 class OperationFailure(Exception):
     pass
 
@@ -68,7 +101,8 @@ class VM:
         self.tx = tx
         self.index = index
         self.input = tx.inputs[index]
-        self.scriptPubKey = self.input.ref().script
+        self.output = self.input.ref()
+        self.scriptPubKey = self.output.script
         self.scriptSig = self.input.script
         self.script = self.scriptSig + self.scriptPubKey
         self.stack = []
@@ -115,6 +149,8 @@ class VM:
             return self.verify_legacy()
         elif tx_type == TX.P2SH:
             return self.verify_p2sh()
+        elif tx_type == TX.P2WPKH:
+            return self.verify_p2wpkh()
         else:
             raise InvalidTransaction(f"Unknown transaction type {tx_type}")
 
@@ -137,6 +173,27 @@ class VM:
             return False
 
         return state.verify_legacy()
+
+    def verify_p2wpkh(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
+        if not version_byte(self.scriptPubKey) == 0x00:
+            raise InvalidTransaction('Unknown witness version')
+
+        if len(self.scriptSig) > 0:
+            raise InvalidTransaction(f'ScriptSig must be empty for a {TX.P2WPKH} transaction')
+
+        wit = deepcopy(self.input.witness)
+        if len(wit) != 2 or len(wit[0]) > 520 or len(wit[1]) > 520:
+            raise InvalidTransaction(f'Invalid witness for a {TX.P2WPKH} transaction')
+
+        self.stack = wit
+        self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'  # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+
+        return self.verify_legacy()
+
+    def verify_p2wsh(self):
+        raise NotImplementedError
+
 
     def OP_PUSH(self, n):
         """Push the next n bytes to the top of the stack"""

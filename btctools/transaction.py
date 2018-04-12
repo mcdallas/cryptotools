@@ -2,13 +2,10 @@ from copy import deepcopy, copy
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from btctools.opcodes import SIGHASH, TX
-from btctools.script import VM, asm
+from btctools.script import VM, asm, witness_program, push, pad
 
 
-def diff(a, b):
-    for idx, (i, j) in enumerate(zip(a, b)):
-        if i != j:
-            print(f"diff at index {idx}: {i} vs {j}")
+concat = b''.join
 
 
 class TransactionError(Exception):
@@ -27,16 +24,6 @@ class ValidationError(TransactionError):
     pass
 
 
-def pad(val, bytelength):
-    if isinstance(val, bytes):
-        assert len(val) == bytelength, f"Value should be {bytelength} bytes long"
-        return val
-    elif isinstance(val, int):
-        return int_to_bytes(val).rjust(bytelength, b'\x00')
-    else:
-        raise TypeError('Value should be bytes or int')
-
-
 class Input:
     def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', witness=None, referenced_tx=None):
         # Parameters should be bytes as transmitted i.e reversed
@@ -45,14 +32,13 @@ class Input:
         self.index = index[::-1] if isinstance(index, int) else bytes_to_int(index[::-1])
         assert self.index <= 0xffffffff
         self.script = script
-        self.sequence = sequence
+        self.sequence = sequence[::-1]
         self._referenced_tx = referenced_tx
-        assert not witness or (all((len(item) <= 520 for item in witness)) and len(witness) == 2), 'Invalid witness'
         self.witness = witness
 
     def ref(self):
         """The output that this input is spending"""
-        if self._referenced_tx is None or self._referenced_tx.txid() != self.output:
+        if self._referenced_tx is None or self._referenced_tx.txid()[::-1] != self.output:
             # Gets the transaction from bitcoin.info and caches the result
             self._referenced_tx = Transaction.get(self.output)
         return self._referenced_tx.outputs[self.index]
@@ -92,6 +78,13 @@ class Input:
             result += int_to_bytes(len(stack_item)) + stack_item
         return result
 
+    def outpoint(self):
+        return self.output[::-1] + self._index[::-1]
+
+    # def is_witness_program(self):
+    #     # Version byte + Witness programm
+    #     return 0 <= bytes_to_int(self.witness[0]) <= 16 and 2 <= len(self.witness[1]) <= 40
+
     @classmethod
     def deserialize(cls, bts):
         output, index, script_len = bts[:32], bts[32:36], bts[36:37]
@@ -102,6 +95,9 @@ class Input:
 
     def __repr__(self):
         return f"{self.__class__.__name__}(from={bytes_to_hex(self.output)})"
+
+    def asm(self):
+        return asm(self.script)
 
     def json(self):
         result = {
@@ -161,14 +157,19 @@ class Output:
             return TX.P2SH
         elif self.script.startswith(b'\x76\xa9') and self.script.endswith(b'\x88\xac') and len(self.script) == 25:
             return TX.P2PKH
-        elif self.script.startswith(b'\x00 ') and len(self.script) == 34:
+        elif self.script.startswith(b'\x00\x20') and len(self.script) == 34:
             return TX.P2WSH
-        elif self.script.startswith(b'\x00 ') and len(self.script) == 22:
+        elif self.script.startswith(b'\x00\x14') and len(self.script) == 22:
             return TX.P2WPKH
-        elif self.script.startswith(b'A') and self.script.endswith(b'\xac') and len(self.script) == 67:
+        elif self.script.startswith(b'\x41') and self.script.endswith(b'\xac') and len(self.script) == 67:
             return TX.P2PK
         else:
             raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")
+
+    def scriptcode(self):
+        if self.type() == TX.P2WPKH:
+            # OP_PUSH25 OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+            return b'\x19\x76\xa9' + push(witness_program(self.script)) + b'\x88\xac'
 
     def __repr__(self):
         return f"{self.__class__.__name__}(type={self.type()}, value={self.value/10**8} BTC)"
@@ -210,11 +211,11 @@ class Transaction:
     def serialize(self, segwit=None):
         if segwit is None:
             segwit = self.segwit
-        inputs = b''.join((inp.serialize() for inp in self.inputs))
-        outputs = b''.join((out.serialize() for out in self.outputs))
+        inputs = concat((inp.serialize() for inp in self.inputs))
+        outputs = concat((out.serialize() for out in self.outputs))
         if not segwit:
             return self._version[::-1] + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + self._lock_time[::-1]
-        witness = b''.join((inp.serialize_witness() for inp in self.inputs))
+        witness = concat((inp.serialize_witness() for inp in self.inputs))
         return self._version[::-1] + b'\x00\x01' + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + witness + self._lock_time[::-1]
 
     @classmethod
@@ -342,7 +343,7 @@ class Transaction:
 
     def signature_form(self, i, script=None, hashcode=SIGHASH.ALL):
         """Create the object to be signed for the i-th input of this transaction"""
-        # We need to recreate the object that needs to be signed which is not the actual transaction
+        # Recreates the object that needs to be signed which is not the actual transaction
         # More info at:
         # https://bitcoin.stackexchange.com/questions/32628/redeeming-a-raw-transaction-step-by-step-example-required/32695#32695
         # https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
@@ -376,6 +377,35 @@ class Transaction:
             tx.inputs = [tx.inputs[i]]
 
         return tx.serialize() + pad(hashcode.value, 4)[::-1]
+
+    def digest(self, i, ref=None, hashtype=SIGHASH.ALL):
+        """Segwit version of signature_form"""
+        # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
+        tx = deepcopy(self)
+
+        if ref is None:
+            ref = tx.inputs[i].ref()
+
+        nversion = tx._version[::-1]
+        hashprevouts = sha256(sha256(concat((inp.outpoint() for inp in tx.inputs)))) if hashtype != SIGHASH.ANYONECANPAY else pad(0, 32)
+        hashsequence = sha256(sha256(concat(inp._sequence[::-1] for inp in tx.inputs))) if hashtype == SIGHASH.ALL else pad(0, 32)
+        outpoint = tx.inputs[i].outpoint()
+        scriptcode = ref.scriptcode()
+        value = ref._value[::-1]
+        nsequence = tx.inputs[i]._sequence[::-1]
+
+        if hashtype not in (SIGHASH.SIGNLE, SIGHASH.NONE):
+            hashoutputs = sha256(sha256(concat(out._value[::-1] + push(out.script) for out in tx.outputs)))
+        elif hashtype == SIGHASH.SIGNLE and i >= len(tx.outputs):
+            hashoutputs = sha256(sha256(tx.outputs[i]._value[::-1] + push(tx.outputs[i].script)))
+        else:
+            hashoutputs = pad(0, 32)
+
+        nlocktime = tx._lock_time[::-1]
+        sighash = pad(hashtype.value, 4)[::-1]
+
+        preimage = concat([nversion, hashprevouts, hashsequence, outpoint, scriptcode, value, nsequence, hashoutputs, nlocktime, sighash])
+        return sha256(sha256(preimage))
 
     def verify(self, i=None):
         """Run the script for the i-th input or all the inputs"""

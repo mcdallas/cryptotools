@@ -1,5 +1,5 @@
 import unittest
-from btctools.transaction import Transaction
+from btctools.transaction import Transaction, Output
 from transformations import *
 from time import sleep
 
@@ -184,3 +184,20 @@ class TestTransaction(unittest.TestCase):
         assert o1.json()['scriptPubKey']['hex'] == "a914bbc85a4bfb82a4a1771cd2b22b791d9a3a61c30187"
         assert o2.value == 0.26610337 * 10**8
 
+    def test_digest(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#native-p2wpkh"""
+
+        tx = Transaction.from_hex('0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f0000000000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000')
+        ref = Output(6 * 10 ** 8, hex_to_bytes('00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'))
+
+        assert bytes_to_hex(tx.digest(1, ref=ref)) == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
+
+
+    def test_p2wpkh(self):
+        # http://n.bitcoin.ninja/checktx?txid=d869f854e1f8788bcff294cc83b280942a8c728de71eb709a2c29d10bfe21b7c
+        tx = Transaction.from_hex('0100000000010115e180dc28a2327e687facc33f10f2a20da717e5548406f7ae8b4c811072f8560100000000ffffffff0100b4f505000000001976a9141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92888ac02483045022100df7b7e5cda14ddf91290e02ea10786e03eb11ee36ec02dd862fe9a326bbcb7fd02203f5b4496b667e6e281cc654a2da9e4f08660c620a1051337fa8965f727eb19190121038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990ac00000000')
+        # http://n.bitcoin.ninja/checktx?txid=56f87210814c8baef7068454e517a70da2f2103fc3ac7f687e32a228dc80e115
+        ref = Transaction.from_hex('0100000001b0ac96e3731db370c5ca83bad90a427d1687b65bc89fa2aef2ceeb567511e59f000000006a473044022021483045c74332e0cdf2ba3c46a7ed2abdfd7a04cd3eef79238e394a9285c8c00220536adca2c48231fa8be7fa0a24e75b0f8ecced44967652e89dd19f7fd03617a70121038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990acffffffff05a8f8c223000000001976a9141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92888ac00e1f505000000001600141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92800e1f5050000000022002001d5d92effa6ffba3efa379f9830d0f75618b13393827152d26e4309000e88b100e1f5050000000017a914901c8694c03fafd5522810e0330f26e67a8533cd8700e1f5050000000017a91485b9ff0dcb34cf513d6412c6cf4d76d9dc2401378700000000')
+
+        tx.inputs[0]._referenced_tx = ref
+        # assert tx.verify()
