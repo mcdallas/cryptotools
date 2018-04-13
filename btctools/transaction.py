@@ -1,9 +1,9 @@
 from copy import deepcopy, copy
 
-from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
+from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256, hash160
 from btctools.opcodes import SIGHASH, TX
 from btctools.script import VM, asm, witness_program, push, pad
-from ECDS.secp256k1 import PrivateKey
+from ECDS.secp256k1 import PrivateKey, CURVE
 
 
 concat = b''.join
@@ -88,6 +88,12 @@ class Input:
 
     def outpoint(self):
         return self.output[::-1] + self._index[::-1]
+
+    def is_nested(self):
+        if not self.ref().type() == TX.P2SH or not self.segwit:
+            return False
+        if hash160(self.script[1:]):
+            pass
 
     # def is_witness_program(self):
     #     # Version byte + Witness programm
@@ -216,6 +222,7 @@ class Transaction:
 
     @property
     def segwit(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#specification"""
         return any((inp.segwit for inp in self.inputs))
 
     def serialize(self, segwit=None):
@@ -427,10 +434,14 @@ class Transaction:
 
         return concat([nversion, hashprevouts, hashsequence, outpoint, scriptcode, value, nsequence, hashoutputs, nlocktime, sighash])
 
-    def sign(self, i: int, private: PrivateKey, hashcode=SIGHASH.ALL):
+    def sign_input(self, i: int, private: PrivateKey, hashcode=SIGHASH.ALL):
         """Sign the i-th input"""
         digest = self.sighash(i=i, hashcode=hashcode)
-        return private.sign_hash(digest)
+        sig = private.sign_hash(digest)
+        # https://github.com/bitcoin/bips/blob/master/bip-0146.mediawiki#low_s
+        if sig.s > CURVE.N//2:
+            sig.s = CURVE.N - sig.s
+        return sig
 
     def verify(self, i=None):
         """Run the script for the i-th input or all the inputs"""

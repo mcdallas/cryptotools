@@ -200,8 +200,7 @@ class TestTransaction(unittest.TestCase):
         sig = private.sign_hash(sighash)
         assert sig.verify_hash(sighash, public)
 
-
-    def test_p2wpkh(self):
+    def test_verify_p2wpkh(self):
         # http://n.bitcoin.ninja/checktx?txid=d869f854e1f8788bcff294cc83b280942a8c728de71eb709a2c29d10bfe21b7c
         tx = Transaction.from_hex('0100000000010115e180dc28a2327e687facc33f10f2a20da717e5548406f7ae8b4c811072f8560100000000ffffffff0100b4f505000000001976a9141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92888ac02483045022100df7b7e5cda14ddf91290e02ea10786e03eb11ee36ec02dd862fe9a326bbcb7fd02203f5b4496b667e6e281cc654a2da9e4f08660c620a1051337fa8965f727eb19190121038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990ac00000000')
         # http://n.bitcoin.ninja/checktx?txid=56f87210814c8baef7068454e517a70da2f2103fc3ac7f687e32a228dc80e115
@@ -209,3 +208,7 @@ class TestTransaction(unittest.TestCase):
 
         tx.inputs[0]._referenced_tx = ref
         assert tx.verify()
+
+    def test_verify_p2wsh(self):
+        # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+        tx = Transaction.from_hex('0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000')

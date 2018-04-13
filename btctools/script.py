@@ -40,13 +40,13 @@ def is_witness_program(script):
 
 def witness_program(script):
     if not is_witness_program(script):
-        raise InvalidTransaction("Script is ot a witness program")
+        raise InvalidTransaction("Script is not a witness program")
     return script[2:]
 
 
 def version_byte(script):
     if not is_witness_program(script):
-        raise InvalidTransaction("Script is ot a witness program")
+        raise InvalidTransaction("Script is not a witness program")
     return script[0]
 
 
@@ -166,7 +166,11 @@ class VM:
 
         state = VM(self.tx, self.index)
         state.stack = deepcopy(self.stack)
-        state.script = state.pop()  # redeem script
+        redeem = state.pop()  # redeem script
+        if is_witness_program(redeem):
+            # version = version_byte(redeem)
+            redeem = witness_program(redeem)
+        state.script = redeem
 
         first_verification = self.verify_legacy()
         if first_verification is False:
@@ -188,7 +192,8 @@ class VM:
 
         self.stack = wit
         # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-        self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
+        # self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
+        self.script = self.output.scriptcode()[1:]
 
         return self.verify_legacy()
 
@@ -202,7 +207,10 @@ class VM:
 
     def OP_DUP(self):
         """	Duplicates the top stack item."""
-        self.push(copy(self.stack[-1]))
+        top = self.pop()
+        dupe = copy(top)
+        self.push(top)
+        self.push(dupe)
 
     def OP_NIP(self):
         """	Removes the second-to-top stack item."""
