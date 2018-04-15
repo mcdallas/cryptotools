@@ -62,7 +62,7 @@ class Input:
 
     @property
     def script_length(self):
-        return int_to_bytes(len(self.script))
+        return len(self.script)
 
     @property
     def sequence(self):
@@ -81,7 +81,7 @@ class Input:
         self._index = pad(x, 4)
 
     def serialize(self):
-        return self.output[::-1] + self._index[::-1] + self.script_length + self.script + self._sequence[::-1]
+        return self.output[::-1] + self._index[::-1] + var_int(self.script_length) + self.script + self._sequence[::-1]
 
     def serialize_witness(self):
         if not self.segwit:
@@ -170,7 +170,7 @@ class Output:
         return len(self.script)
 
     def serialize(self):
-        return self._value[::-1] + int_to_bytes(self.script_len) + self.script
+        return self._value[::-1] + var_int(self.script_len) + self.script
 
     @classmethod
     def deserialize(cls, bts):
