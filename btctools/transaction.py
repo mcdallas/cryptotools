@@ -104,11 +104,11 @@ class Input:
         if output.type() == TX.P2WPKH:
             # OP_PUSH25 OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
             return b'\x19\x76\xa9' + push(witness_program(output.script)) + b'\x88\xac'
-        elif output.type() == TX.P2SH and self.is_nested() == TX.P2WPKH:
-            return b'\x19\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
-    # def is_witness_program(self):
-    #     # Version byte + Witness programm
-    #     return 0 <= bytes_to_int(self.witness[0]) <= 16 and 2 <= len(self.witness[1]) <= 40
+        elif output.type() == TX.P2SH:
+            if self.is_nested() == TX.P2WPKH:
+                return b'\x19\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
+            elif self.is_nested() == TX.P2WSH:
+                return self.witness[0]
 
     @classmethod
     def deserialize(cls, bts):
