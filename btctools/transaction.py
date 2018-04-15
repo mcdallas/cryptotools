@@ -1,8 +1,9 @@
 from copy import deepcopy, copy
+from collections import deque
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256, hash160
 from btctools.opcodes import SIGHASH, TX
-from btctools.script import VM, asm, witness_program, push, pad
+from btctools.script import VM, asm, witness_program, is_witness_program, push, pad, InvalidTransaction
 from ECDS.secp256k1 import PrivateKey, CURVE
 
 
@@ -35,10 +36,13 @@ class Input:
         self.script = script
         self.sequence = sequence[::-1]
         self._referenced_tx = referenced_tx
+        self._referenced_output = None
         self.witness = witness
 
     def ref(self):
         """The output that this input is spending"""
+        if self._referenced_output is not None:
+            return self._referenced_output
         if self._referenced_tx is None or self._referenced_tx.txid()[::-1] != self.output:
             # Gets the transaction from bitcoin.info and caches the result
             self._referenced_tx = Transaction.get(self.output)
@@ -90,11 +94,24 @@ class Input:
         return self.output[::-1] + self._index[::-1]
 
     def is_nested(self):
-        if not self.ref().type() == TX.P2SH or not self.segwit:
-            return False
-        if hash160(self.script[1:]):
-            pass
+        if self.ref().type() == TX.P2SH:
+            try:
+                witness_script = witness_program(self.script[1:])
+            except InvalidTransaction:
+                return False
+            if len(witness_script) == 20:
+                return TX.P2WPKH
+            elif len(witness_script) == 32:
+                return TX.P2WSH
+        return False
 
+    def scriptcode(self):
+        output = self.ref()
+        if output.type() == TX.P2WPKH:
+            # OP_PUSH25 OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+            return b'\x19\x76\xa9' + push(witness_program(output.script)) + b'\x88\xac'
+        elif output.type() == TX.P2SH and self.is_nested() == TX.P2WPKH:
+            return b'\x19\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
     # def is_witness_program(self):
     #     # Version byte + Witness programm
     #     return 0 <= bytes_to_int(self.witness[0]) <= 16 and 2 <= len(self.witness[1]) <= 40
@@ -182,11 +199,6 @@ class Output:
         else:
             raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")
 
-    def scriptcode(self):
-        if self.type() == TX.P2WPKH:
-            # OP_PUSH25 OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-            return b'\x19\x76\xa9' + push(witness_program(self.script)) + b'\x88\xac'
-
     def __repr__(self):
         return f"{self.__class__.__name__}(type={self.type()}, value={self.value/10**8} BTC)"
 
@@ -206,9 +218,7 @@ class Output:
 class Transaction:
 
     def __init__(self, inputs, outputs, version=b'\x01\x00\x00\x00', lock_time=b'\x00\x00\x00\x00'):
-        assert len(inputs) <= 0xff, 'Too many inputs'
         self.inputs = inputs
-        assert len(outputs) <= 0xff, 'Too many outputs'
         self.outputs = outputs
         assert len(version) == 4, 'Invalid Version'
         assert len(lock_time) == 4, 'Invalid lock time'
@@ -246,13 +256,16 @@ class Transaction:
     @classmethod
     def _deserialize(cls, tx: bytes) -> 'Transaction':
         segwit = False
-
+        tx = deque(tx)
         def pop(x):
-            nonlocal tx
-            data = tx[:x]
-            assert data or x == 0, 'EOF'
-            tx = tx[x:]
-            return data
+            # nonlocal tx
+            # data = tx[:x]
+            data = []
+            for _ in range(x):
+                data.append(tx.popleft())
+            # assert data or x == 0, 'EOF'
+            # tx = tx[x:]
+            return bytes(data)
 
         def read_var_int():
             """https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer"""
@@ -288,7 +301,7 @@ class Transaction:
             inp = Input(output=tx_hash, index=index, script=script, sequence=sequence, witness=None)
             inputs.append(inp)
 
-        output_count = bytes_to_int(pop(1))
+        output_count = read_var_int()
 
         for _ in range(output_count):
             value = pop(8)
@@ -309,7 +322,7 @@ class Transaction:
                     elements.append(element)
 
                 if elements:
-                    inp.witness = elements
+                    inp.witness = tuple(elements)
 
         lock_time = pop(4)
         assert not tx, f"{len(tx)} Leftover bytes"
@@ -362,7 +375,7 @@ class Transaction:
         inp = self.inputs[i]
         tx_type = inp.ref().type()
 
-        if tx_type in (TX.P2PK, TX.P2PKH, TX.P2SH):
+        if tx_type in (TX.P2PK, TX.P2PKH) or (tx_type == TX.P2SH and not inp.is_nested()):
             preimage = self.signature_form_legacy(i=i, hashcode=hashcode)
         else:
             preimage = self.signature_form_segwit(i=i, hashcode=hashcode)
@@ -404,21 +417,20 @@ class Transaction:
         elif hashcode == SIGHASH.ANYONECANPAY:
             tx.inputs = [tx.inputs[i]]
 
-        return tx.serialize() + pad(hashcode.value, 4)[::-1]
+        return tx.serialize(segwit=tx.inputs[i].segwit) + pad(hashcode.value, 4)[::-1]
 
-    def signature_form_segwit(self, i, ref=None, hashcode=SIGHASH.ALL):
+    def signature_form_segwit(self, i, hashcode=SIGHASH.ALL):
         """Segwit version of signature_form"""
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#specification
         tx = deepcopy(self)
 
-        if ref is None:
-            ref = tx.inputs[i].ref()
+        ref = tx.inputs[i].ref()
 
         nversion = tx._version[::-1]
         hashprevouts = sha256(sha256(concat((inp.outpoint() for inp in tx.inputs)))) if hashcode != SIGHASH.ANYONECANPAY else pad(0, 32)
         hashsequence = sha256(sha256(concat(inp._sequence[::-1] for inp in tx.inputs))) if hashcode == SIGHASH.ALL else pad(0, 32)
         outpoint = tx.inputs[i].outpoint()
-        scriptcode = ref.scriptcode()
+        scriptcode = tx.inputs[i].scriptcode()
         value = ref._value[::-1]
         nsequence = tx.inputs[i]._sequence[::-1]
 

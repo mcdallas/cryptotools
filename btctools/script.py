@@ -151,6 +151,8 @@ class VM:
             return self.verify_p2sh()
         elif tx_type == TX.P2WPKH:
             return self.verify_p2wpkh()
+        elif tx_type == TX.P2WSH:
+            return self.verify_p2wsh()
         else:
             raise InvalidTransaction(f"Unknown transaction type {tx_type}")
 
@@ -161,20 +163,33 @@ class VM:
 
     def verify_p2sh(self):
         self.step()
-        self.step()
-        self.step()
+        # self.step()
+        # self.step()
 
         state = VM(self.tx, self.index)
         state.stack = deepcopy(self.stack)
         redeem = state.pop()  # redeem script
-        if is_witness_program(redeem):
-            # version = version_byte(redeem)
-            redeem = witness_program(redeem)
-        state.script = redeem
+
 
         first_verification = self.verify_legacy()
         if first_verification is False:
             return False
+
+
+        # determine if it is a normal P2SH or a nested P2WKH into a P2SH
+        if is_witness_program(redeem):
+            # version = version_byte(redeem)
+            if not self.scriptSig == push(redeem):
+                raise InvalidTransaction("The scriptSig must be exactly a push of the BIP16 redeemScript in a P2SH-P2PKH transaction")
+            # redeem = witness_program(redeem)
+            state.scriptPubKey = redeem
+            state.scriptSig = b''
+
+            return state.verify_p2wpkh()
+
+        state.script = redeem
+
+
 
         return state.verify_legacy()
 
@@ -186,20 +201,33 @@ class VM:
         if len(self.scriptSig) > 0:
             raise InvalidTransaction(f'ScriptSig must be empty for a {TX.P2WPKH} transaction')
 
-        wit = deepcopy(self.input.witness)
-        if len(wit) != 2 or len(wit[0]) > 520 or len(wit[1]) > 520:
+        witness = deepcopy(self.input.witness)
+        if len(witness) != 2 or len(witness[0]) > 520 or len(witness[1]) > 520:
             raise InvalidTransaction(f'Invalid witness for a {TX.P2WPKH} transaction')
 
-        self.stack = wit
+        self.stack = list(witness)
         # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-        # self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
-        self.script = self.output.scriptcode()[1:]
+        self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
+        # self.script = self.output.scriptcode()[1:]
 
-        return self.verify_legacy()
+        return self.verify_legacy() and len(self.stack) == 0
 
     def verify_p2wsh(self):
-        raise NotImplementedError
+        if not version_byte(self.scriptPubKey) == 0x00:
+            raise InvalidTransaction('Unknown witness version')
 
+        witness = deepcopy(self.input.witness)
+        self.stack = list(witness)
+        witness_script = self.pop()
+
+        if not len(witness_script) <= 10000:
+            raise InvalidTransaction('Witness script too long')
+
+        self.script = witness_script
+        if any((len(item) > 520 for item in witness)):
+            raise InvalidTransaction(f'Invalid witness for a {TX.P2WSH} transaction')
+
+        return self.verify_legacy() and len(self.stack) == 0
 
     def OP_PUSH(self, n):
         """Push the next n bytes to the top of the stack"""
@@ -235,7 +263,7 @@ class VM:
     def OP_VERIFY(self):
         """Marks transaction as invalid if top stack value is not true. The top stack value is removed."""
         if not self.pop() is True:
-            raise InvalidTransaction
+            raise OperationFailure
 
     def OP_EQUALVERIFY(self):
         """Same as OP_EQUAL, but runs OP_VERIFY afterward."""

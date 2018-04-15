@@ -124,13 +124,14 @@ class TestTransaction(unittest.TestCase):
             'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
             '12b5633bad1f9c167d523ad1aa1947b2732a865bf5414eab2f9e5ae5d5c191ba',
             # 'a38d3393a32d06fe842b35ebd68aa2b6a1ccbabbbc244f67462a10fd8c81dba5',  # coinbase
-            # 'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
+            'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
-            # 'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'  # 24 inputs 7 outputs
+            'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'  # 24 inputs 7 outputs
             # '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214'  # sends to P2SH and P2WSH
-            # 'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f'  # attack tx
+            # 'eba5e1e668e0d47dc28c7fff686a7f680e334e1f9740fd90f0aed3d5e9c4114a'  # spends P2WSH
+            'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f'  # attack tx
         ]
 
         for tx_id in tx_ids:
@@ -189,9 +190,11 @@ class TestTransaction(unittest.TestCase):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#native-p2wpkh"""
 
         tx = Transaction.from_hex('0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f0000000000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a0100000000ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000')
-        ref1 = Output(6 * 10 ** 8, hex_to_bytes('00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'))
+        ref = Output(6 * 10 ** 8, hex_to_bytes('00141d0f172a0ecb48aee1be1f2687d2963ae33f71a1'))
 
-        sighash = sha256(sha256(tx.signature_form_segwit(1, ref=ref1)))
+        tx.inputs[1]._referenced_output = ref
+
+        sighash = sha256(sha256(tx.signature_form_segwit(1)))
 
         assert bytes_to_hex(sighash) == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
         private = PrivateKey.from_hex('619c335025c7f4012e556c2a58b2506e30b8511b53ade95ea316fd8c3286feb9')
