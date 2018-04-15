@@ -1,9 +1,10 @@
 from copy import deepcopy, copy
 from collections import deque
+from time import sleep
 
-from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256, hash160
+from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from btctools.opcodes import SIGHASH, TX
-from btctools.script import VM, asm, witness_program, is_witness_program, push, pad, InvalidTransaction
+from btctools.script import VM, asm, witness_program, push, pad, InvalidTransaction, var_int
 from ECDS.secp256k1 import PrivateKey, CURVE
 
 
@@ -80,7 +81,7 @@ class Input:
         self._index = pad(x, 4)
 
     def serialize(self):
-        return self.output[::-1] + self._index[::-1] + self.script_length + self.script + self._sequence
+        return self.output[::-1] + self._index[::-1] + self.script_length + self.script + self._sequence[::-1]
 
     def serialize_witness(self):
         if not self.segwit:
@@ -241,9 +242,9 @@ class Transaction:
         inputs = concat((inp.serialize() for inp in self.inputs))
         outputs = concat((out.serialize() for out in self.outputs))
         if not segwit:
-            return self._version[::-1] + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + self._lock_time[::-1]
+            return self._version[::-1] + var_int(len(self.inputs)) + inputs + var_int(len(self.outputs)) + outputs + self._lock_time[::-1]
         witness = concat((inp.serialize_witness() for inp in self.inputs))
-        return self._version[::-1] + b'\x00\x01' + int_to_bytes(len(self.inputs)) + inputs + int_to_bytes(len(self.outputs)) + outputs + witness + self._lock_time[::-1]
+        return self._version[::-1] + b'\x00\x01' + var_int(len(self.inputs)) + inputs + var_int(len(self.outputs)) + outputs + witness + self._lock_time[::-1]
 
     @classmethod
     def deserialize(cls, tx: bytes) -> 'Transaction':
@@ -363,6 +364,7 @@ class Transaction:
             txhash = bytes_to_hex(txhash)
         url = f"https://blockchain.info/rawtx/{txhash}?format=hex"
         req = urllib.request.Request(url)
+        sleep(0.1)
         with urllib.request.urlopen(req) as resp:
             assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
             try:

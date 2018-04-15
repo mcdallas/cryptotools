@@ -18,6 +18,20 @@ def op_push(i: int) -> bytes:
         return b'\x4e' + int_to_bytes(i)
 
 
+def var_int(n):
+    data = int_to_bytes(n)
+    if len(data) == 1:
+        return data
+    elif len(data) == 2:
+        return b'\xfd' + data[::-1]
+    elif len(data) < 4:
+        return b'\xfe' + pad(n, 4)[::-1]
+    elif len(data) <= 8:
+        return b'\xff' + pad(n, 8)[::-1]
+    else:
+        raise ValueError('Data too long for var_int')
+
+
 def push(script: bytes) -> bytes:
     return op_push(len(script)) + script
 

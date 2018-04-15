@@ -128,16 +128,16 @@ class TestTransaction(unittest.TestCase):
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
-            'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'  # 24 inputs 7 outputs
-            # '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214'  # sends to P2SH and P2WSH
-            # 'eba5e1e668e0d47dc28c7fff686a7f680e334e1f9740fd90f0aed3d5e9c4114a'  # spends P2WSH
-            'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f'  # attack tx
+            'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b',  # 24 inputs 7 outputs
+            # '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214',  # sends to P2SH and P2WSH
+            # 'eba5e1e668e0d47dc28c7fff686a7f680e334e1f9740fd90f0aed3d5e9c4114a',  # spends P2WSH
+            'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f'  # non standard sequence
         ]
 
         for tx_id in tx_ids:
             tx = Transaction.get(tx_id)
             assert tx.verify(), f"{tx_id}"
-            sleep(0.25)
+            sleep(0.35)
 
     def test_deserialize_p2wpkh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Example"""
@@ -215,3 +215,10 @@ class TestTransaction(unittest.TestCase):
     def test_verify_p2wsh(self):
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
         tx = Transaction.from_hex('0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a54770100000000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac0008af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000')
+
+def diff(a, b):
+    for idx, (i, j) in enumerate(zip(a, b)):
+        if i != j:
+            print(f"diff at index {idx}: {i} vs {j}")
+            break
+

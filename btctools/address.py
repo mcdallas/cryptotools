@@ -74,9 +74,6 @@ def script_to_address(script: bytes, version='P2SH') -> str:
     return converter(script)
 
 
-
-
-
 def address_to_script(addr: str) -> bytes:
     """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#segwit-address-format"""
     hrp, _ = bech32.bech32_decode(addr)
