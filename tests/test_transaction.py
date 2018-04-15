@@ -1,8 +1,46 @@
 import unittest
+import pathlib
+
 from btctools.transaction import Transaction, Output
 from ECDS.secp256k1 import PrivateKey
 from transformations import *
 from time import sleep
+
+ECHO = False
+HERE = pathlib.Path(__file__).parent.absolute()
+
+
+def tx_path(txhash):
+    return HERE / "transactions" / f"{txhash}.txt"
+
+
+old_get = Transaction.get
+tx_cache = {}
+
+
+def get(txhash):
+    if isinstance(txhash, bytes):
+        txhash = bytes_to_hex(txhash)
+    if txhash in tx_cache:
+        if ECHO:
+            print(f"\nGetting tx {txhash} from cache")
+        return Transaction.from_hex(tx_cache[txhash])
+    try:
+        with open(tx_path(txhash)) as f:
+            if ECHO:
+                print(f"\nGetting tx {txhash} from file")
+            hexstring = f.read()
+            tx_cache[txhash] = hexstring
+            return Transaction.from_hex(hexstring)
+    except FileNotFoundError:
+        if ECHO:
+            print(f"\nGetting tx {txhash} from blockchain.info")
+        tx = old_get(txhash)
+        tx_cache[txhash] = tx.hex()
+        return tx
+
+
+Transaction.get = get
 
 
 class TestTransaction(unittest.TestCase):
@@ -118,6 +156,22 @@ class TestTransaction(unittest.TestCase):
         assert len(trans.outputs) == 7
         assert trans.json()['txid'] == 'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'
         assert trans.hex() == tx
+
+    def test_serialize(self):
+
+        tx_ids = [
+            '4246efebfa3789c674da2f396d1543869cfd0f723c60e09626dafe7489c4e724',
+            'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f',
+            'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'
+        ]
+
+        for tx_id in tx_ids:
+            with open(tx_path(tx_id)) as f:
+                tx = f.read()
+
+            trans = Transaction.from_hex(tx)
+            assert trans.hex() == tx
+
 
     def test_verification(self):
         tx_ids = [

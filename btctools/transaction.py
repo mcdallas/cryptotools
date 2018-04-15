@@ -52,13 +52,6 @@ class Input:
     @property
     def segwit(self):
         return bool(self.witness)
-        # if bool(self.witness) and not bool(self.script):
-        #     return True
-        # elif bool(self.script) and not bool(self.witness):
-        #     return False
-        # else:
-        #     return self.ref().type() in (TX.P2WPKH, TX.P2WSH)
-
 
     @property
     def script_length(self):
