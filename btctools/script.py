@@ -140,7 +140,7 @@ class VM:
         self.script = self.scriptSig + self.scriptPubKey
         self.stack = []
         self.OPS = {OP(i): partial(self.OP_PUSH, i) for i in range(1, 76)}
-        self.OPS.update({OP(i): lambda: self.push(int_to_bytes(i-80)) for i in range(81, 97)})
+        self.OPS.update({OP(i): partial(self.push, i-80) for i in range(81, 97)})
 
     def read(self, n):
         """Read and remove first n bytes from the script"""
@@ -325,3 +325,37 @@ class VM:
     def OP_0(self):
         """An empty array of bytes is pushed onto the stack. (This is not a no-op: an item is added to the stack.)"""
         self.push(b'')
+
+    def OP_CHECKMULTISIG(self):
+        # ['', '3045022100c38f1d0e340f4308b7f6e4bef0c8668e84793370924844a1076cc986f37047af02207cc29b61e85dc580ce85e01858e2e47eb3b8a80472ad784eb74538045e8172e801', '30450221009a6abea495730976b69f255282ee0c488e49769138b7048e749dd5215bdf8120022069f690fcaf5dba05f0537911b16b2868087440eb55a19dc6e89bcb83f1f35c6501', 2, '02d271610ba72d9b0948ea0821fac77e0e6d10234a266b4828671a86a59073bb30', '0359446555d1c389782468191250c007a98393eb6e9db64649cd7ed1e7f9ca0cf3', '023779ee80b4a940503b1d630e7a3934503eecba5d571111f30841cdfbce0e8397', 3]
+        # multisig m out of n
+        n = self.pop()
+
+        keys = []
+        for _ in range(n):
+            keys.append(PublicKey.decode(self.pop()))
+
+        m = self.pop()
+        raw_signatures = []
+        for _ in range(m):
+            raw_signatures.append(self.pop())
+
+        _ = self.pop()  # extra bytes in stack due to original implementation bug
+
+        valid_signatures = []
+        for raw_sig in raw_signatures:
+            sig, hashcode = Signature.decode(raw_sig[:-1]), SIGHASH(raw_sig[-1])
+            sighash = self.tx.sighash(self.index, hashcode=hashcode)
+            for pub in keys:
+                valid = sig.verify_hash(sighash, pub)
+                if valid:
+                    valid_signatures.append(valid)
+                    break
+            else:
+                valid_signatures.append(False)
+
+        self.push(sum(valid_signatures) >= m)
+
+    def OP_CHECKMULTISIGVERIFY(self):
+        self.op(OP.CHECHMULTISIG)
+        self.op(OP.VERIFY)

@@ -137,11 +137,11 @@ class OP(Enum):
     CODESEPERATOR = 0xab
     CHECKSIG = 0xac
     CHECKSIGVERIFY = 0xad
-    CHECKMULTISIGVERIFY = 0xae
-    NOP1 = 0xaf
-    NOP2 = 0xb0
+    CHECKMULTISIG = 0xae
+    CHECKMULTISIGVERIFY = 0xaf
+    NOP1 = 0xb0
     CHECKLOCKTIMEVERIFY = 0xb1
-    NOP3 = 0xb2
+    OP_CHECKSEQUENCEVERIFY = 0xb2
     NOP4 = 0xb3
     NOP5 = 0xb4
     NOP6 = 0xb5

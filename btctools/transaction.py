@@ -105,15 +105,23 @@ class Input:
 
     def scriptcode(self):
         output = self.ref()
-        if output.type() == TX.P2WPKH:
+        output_type = self.ref().type()
+        if output_type == TX.P2WPKH:
             # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
             return b'\x76\xa9' + push(witness_program(output.script)) + b'\x88\xac'
-        elif output.type() == TX.P2SH:
+        elif output_type == TX.P2SH:
             if self.is_nested() == TX.P2WPKH:
                 return b'\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
             elif self.is_nested() == TX.P2WSH:
                 return self.witness[-1]
-
+        # elif output_type == TX.P2WPKH:
+        #     return output.script
+        # elif output_type == TX.P2SH:
+        #     return self.script
+        elif output_type == TX.P2WSH:
+            return self.witness[-1]
+        else:
+            raise ScriptValidationError(f"No scriptcode for {output_type}")
     @classmethod
     def deserialize(cls, bts):
         output, index, script_len = bts[:32], bts[32:36], bts[36:37]
