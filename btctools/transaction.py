@@ -4,7 +4,7 @@ from time import sleep
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from btctools.opcodes import SIGHASH, TX
-from btctools.script import VM, asm, witness_program, push, pad, InvalidTransaction, var_int
+from btctools.script import VM, asm, witness_program, push, pad, InvalidTransaction, var_int, serialize, depush
 from ECDS.secp256k1 import PrivateKey, CURVE
 
 
@@ -54,10 +54,6 @@ class Input:
         return bool(self.witness)
 
     @property
-    def script_length(self):
-        return len(self.script)
-
-    @property
     def sequence(self):
         return bytes_to_int(self._sequence)
 
@@ -74,7 +70,7 @@ class Input:
         self._index = pad(x, 4)
 
     def serialize(self):
-        return self.output[::-1] + self._index[::-1] + var_int(self.script_length) + self.script + self._sequence[::-1]
+        return self.output[::-1] + self._index[::-1] + serialize(self.script) + self._sequence[::-1]
 
     def serialize_witness(self):
         if not self.segwit:
@@ -90,7 +86,7 @@ class Input:
     def is_nested(self):
         if self.ref().type() == TX.P2SH:
             try:
-                witness_script = witness_program(self.script[1:])
+                witness_script = witness_program(depush(self.script))
             except InvalidTransaction:
                 return False
             if len(witness_script) == 20:
@@ -102,13 +98,13 @@ class Input:
     def scriptcode(self):
         output = self.ref()
         if output.type() == TX.P2WPKH:
-            # OP_PUSH25 OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-            return b'\x19\x76\xa9' + push(witness_program(output.script)) + b'\x88\xac'
+            # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+            return b'\x76\xa9' + push(witness_program(output.script)) + b'\x88\xac'
         elif output.type() == TX.P2SH:
             if self.is_nested() == TX.P2WPKH:
-                return b'\x19\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
+                return b'\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
             elif self.is_nested() == TX.P2WSH:
-                return self.witness[0]
+                return self.witness[-1]
 
     @classmethod
     def deserialize(cls, bts):
@@ -158,12 +154,8 @@ class Output:
     def value(self, x):
         self._value = pad(x, 8)
 
-    @property
-    def script_len(self):
-        return len(self.script)
-
     def serialize(self):
-        return self._value[::-1] + var_int(self.script_len) + self.script
+        return self._value[::-1] + serialize(self.script)
 
     @classmethod
     def deserialize(cls, bts):
@@ -422,16 +414,16 @@ class Transaction:
         ref = tx.inputs[i].ref()
 
         nversion = tx._version[::-1]
-        hashprevouts = sha256(sha256(concat((inp.outpoint() for inp in tx.inputs)))) if hashcode != SIGHASH.ANYONECANPAY else pad(0, 32)
+        hashprevouts = sha256(sha256(concat((inp.outpoint() for inp in tx.inputs)))) if not hashcode.is_anyonecanpay() else pad(0, 32)
         hashsequence = sha256(sha256(concat(inp._sequence[::-1] for inp in tx.inputs))) if hashcode == SIGHASH.ALL else pad(0, 32)
         outpoint = tx.inputs[i].outpoint()
-        scriptcode = tx.inputs[i].scriptcode()
+        scriptcode = serialize(tx.inputs[i].scriptcode())
         value = ref._value[::-1]
         nsequence = tx.inputs[i]._sequence[::-1]
 
-        if hashcode not in (SIGHASH.SIGNLE, SIGHASH.NONE):
+        if not (hashcode.is_single() or hashcode.is_none()):
             hashoutputs = sha256(sha256(concat(out._value[::-1] + push(out.script) for out in tx.outputs)))
-        elif hashcode == SIGHASH.SIGNLE and i >= len(tx.outputs):
+        elif hashcode.is_single() and i < len(tx.outputs):
             hashoutputs = sha256(sha256(tx.outputs[i]._value[::-1] + push(tx.outputs[i].script)))
         else:
             hashoutputs = pad(0, 32)

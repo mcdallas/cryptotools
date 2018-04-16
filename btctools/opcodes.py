@@ -5,8 +5,23 @@ from enum import Enum, unique
 class SIGHASH(Enum):
     ALL = 0x01
     NONE = 0x02
-    SIGNLE = 0x03
+    SINGLE = 0x03
     ANYONECANPAY = 0x80
+    ALL_ANYONECANPAY = 0x81
+    NONE_ANYONECANPAY = 0x82
+    SINGLE_ANYONECANPAY = 0x83
+
+    def is_anyonecanpay(self):
+        return self.value in range(0x80, 0x84)
+
+    def is_single(self):
+        return self.value in (0x03, 0x83)
+
+    def is_none(self):
+        return self.value in (0x02, 0x82)
+
+    def is_all(self):
+        return self.value in (0x01, 0x81)
 
 
 @unique
