@@ -122,6 +122,7 @@ class Input:
             return self.witness[-1]
         else:
             raise ScriptValidationError(f"No scriptcode for {output_type}")
+
     @classmethod
     def deserialize(cls, bts):
         output, index, script_len = bts[:32], bts[32:36], bts[36:37]
