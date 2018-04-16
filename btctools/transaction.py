@@ -4,7 +4,7 @@ from time import sleep
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from btctools.opcodes import SIGHASH, TX
-from btctools.script import VM, asm, witness_program, push, pad, InvalidTransaction, var_int, serialize, depush
+from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
 from ECDS.secp256k1 import PrivateKey, CURVE
 
 
@@ -87,13 +87,21 @@ class Input:
         if self.ref().type() == TX.P2SH:
             try:
                 witness_script = witness_program(depush(self.script))
-            except InvalidTransaction:
+            except ScriptValidationError:
                 return False
             if len(witness_script) == 20:
                 return TX.P2WPKH
             elif len(witness_script) == 32:
                 return TX.P2WSH
         return False
+
+    def type(self):
+        referenced_output_type = self.ref().type()
+        my_type = str(referenced_output_type.value)
+        nested = self.is_nested()
+        if nested:
+            my_type += f"-{nested.value}"
+        return my_type
 
     def scriptcode(self):
         output = self.ref()
@@ -393,7 +401,7 @@ class Transaction:
         # https://en.bitcoin.it/wiki/OP_CHECKSIG
         if hashcode == SIGHASH.NONE:
             tx.outputs = []
-        elif hashcode == SIGHASH.SIGNLE:
+        elif hashcode == SIGHASH.SINGLE:
             tx.outputs = tx.outputs[:len(tx.inputs)]
             for output in tx.outputs:
                 output.script = b''
