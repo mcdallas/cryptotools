@@ -73,13 +73,13 @@ def is_witness_program(script):
 
 def witness_program(script):
     if not is_witness_program(script):
-        raise InvalidTransaction("Script is not a witness program")
+        raise ScriptValidationError("Script is not a witness program")
     return script[2:]
 
 
 def version_byte(script):
     if not is_witness_program(script):
-        raise InvalidTransaction("Script is not a witness program")
+        raise ScriptValidationError("Script is not a witness program")
     return script[0]
 
 
@@ -153,6 +153,10 @@ class VM:
     def asm(self):
         return asm(self.script)
 
+    def print(self):
+        print(self.asm())
+        print([bytes_to_hex(i) for i in self.stack])
+
     def pop(self):
         """Pop top item from the stack"""
         return self.stack.pop()
@@ -203,14 +207,13 @@ class VM:
         state.stack = deepcopy(self.stack)
         redeem = state.pop()  # redeem script
 
-
         first_verification = self.verify_legacy()
         if first_verification is False:
             return False
 
-
         # determine if it is a normal P2SH or a nested P2WKH into a P2SH
-        if is_witness_program(redeem):
+        nested = self.input.is_nested()
+        if nested == TX.P2WPKH:
             # version = version_byte(redeem)
             if not self.scriptSig == push(redeem):
                 raise InvalidTransaction("The scriptSig must be exactly a push of the BIP16 redeemScript in a P2SH-P2PKH transaction")
@@ -219,11 +222,12 @@ class VM:
             state.scriptSig = b''
 
             return state.verify_p2wpkh()
+        elif nested == TX.P2WSH:
+            state.scriptPubKey = redeem  # state.scriptSig
+            state.scriptSig = b''
+            return state.verify_p2wsh()
 
         state.script = redeem
-
-
-
         return state.verify_legacy()
 
     def verify_p2wpkh(self):
@@ -255,6 +259,9 @@ class VM:
 
         if not len(witness_script) <= 10000:
             raise InvalidTransaction('Witness script too long')
+
+        if not witness_program(self.scriptPubKey) == sha256(witness_script):
+            raise InvalidTransaction('Redeem script hash does not match scriptPubKey')
 
         self.script = witness_script
         if any((len(item) > 520 for item in witness)):
