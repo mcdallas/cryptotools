@@ -6,6 +6,10 @@ from transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hex_to_byt
 from btctools.opcodes import OP, SIGHASH, TX
 
 
+class ScriptValidationError(Exception):
+    pass
+
+
 def op_push(i: int) -> bytes:
     """https://en.bitcoin.it/wiki/Script#Constants"""
     if i < 0x4c:
@@ -21,7 +25,7 @@ def op_push(i: int) -> bytes:
 def var_int(n):
     if n < 0xfd:
         return int_to_bytes(n)
-    elif n <+ 0xffff:
+    elif n <= 0xffff:
         return b'\xfd' + pad(n, 2)[::-1]
     elif n <= 0xffffffff:
         return b'\xfe' + pad(n, 4)[::-1]
@@ -31,8 +35,24 @@ def var_int(n):
         raise ValueError('Data too long for var_int')
 
 
+def serialize(bts):
+    return var_int(len(bts)) + bts
+
+
 def push(script: bytes) -> bytes:
     return op_push(len(script)) + script
+
+
+def depush(script: bytes) -> bytes:
+    push_byte, script = script[0], script[1:]
+    op = OP(push_byte)
+    if push_byte not in range(1, 76):
+        raise ScriptValidationError(f'Script does not start with a PUSH opcode: {op}')
+    if len(script) < push_byte:
+        raise ScriptValidationError('Script too short')
+    elif len(script) > push_byte:
+        raise ScriptValidationError('Script too long')
+    return script
 
 
 def witness_byte(witver: int) -> bytes:
@@ -220,8 +240,8 @@ class VM:
 
         self.stack = list(witness)
         # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-        self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
-        # self.script = self.output.scriptcode()[1:]
+        # self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
+        self.script = self.input.scriptcode()
 
         return self.verify_legacy() and len(self.stack) == 0
 

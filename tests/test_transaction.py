@@ -2,7 +2,7 @@ import unittest
 import pathlib
 
 from btctools.transaction import Transaction, Output
-from btctools.script import push
+from btctools.script import push, serialize
 from btctools.opcodes import SIGHASH
 from ECDS.secp256k1 import PublicKey
 from message import Signature
@@ -263,7 +263,7 @@ class TestTransaction(unittest.TestCase):
 
         inp = tx.inputs[0]
         inp._referenced_output = ref
-        inp.script = push(hex_to_bytes('001479091972186c449eb1ded22b78e40d009bdf0089'))
+        inp.script = serialize(hex_to_bytes('001479091972186c449eb1ded22b78e40d009bdf0089'))
 
         sighash = tx.sighash(0)
         assert bytes_to_hex(sighash) == '64f3b0f4dd2bb3aa1ce8566d220cc74dda9df97d8490cc81d89d735c92e59fb6'
@@ -272,7 +272,7 @@ class TestTransaction(unittest.TestCase):
 
         assert sig.verify_hash(sighash, pub)
 
-    def test_digest_p2wsh(self):
+    def test_digest_p2sh_p2wsh(self):
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#native-p2wsh
         tx = Transaction.from_hex('010000000136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000000ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac00000000')
         ref = Output(int(9.87654321 * 10**8), hex_to_bytes('a9149993a429037b5d912407a71c252019287b8d27a587'))
@@ -282,8 +282,25 @@ class TestTransaction(unittest.TestCase):
         inp.script = push(hex_to_bytes('0020a16b5755f7f6f96dbd65f5f0d6ab9418b89af4b1f14a1bb8a09062c35f0dcb54'))
         inp.witness = [hex_to_bytes('56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae')]
 
-        preimage = tx.signature_form_segwit(0, hashcode=SIGHASH.ALL)
-        assert bytes_to_hex(preimage) == '0100000074afdc312af5183c4198a40ca3c1a275b485496dd3929bca388c4b5e31f7aaa03bb13029ce7b1f559ef5e747fcac439f1455a2ec7c5f09b72290795e7066504436641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e01000000cf56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56aeb168de3a00000000ffffffffbc4d309071414bed932f98832b27b4d76dad7e6c1346f487a8fdbb8eb90307cc0000000001000000'
+        sighash = tx.sighash(0, hashcode=SIGHASH.ALL)
+        assert bytes_to_hex(sighash) == '185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c'
+
+        sighash = tx.sighash(0, SIGHASH.NONE)
+        assert bytes_to_hex(sighash) == 'e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36'
+
+        sighash = tx.sighash(0, SIGHASH.SINGLE)
+        assert bytes_to_hex(sighash) == '1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea'
+
+        sighash = tx.sighash(0, SIGHASH.ALL_ANYONECANPAY)
+        assert bytes_to_hex(sighash) == '2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e'
+
+        sighash = tx.sighash(0, SIGHASH.NONE_ANYONECANPAY)
+        assert bytes_to_hex(sighash) == '781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a'
+
+        sighash = tx.sighash(0, SIGHASH.SINGLE_ANYONECANPAY)
+        assert bytes_to_hex(sighash) == '511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b'
+
+
 
     def test_verify_p2wpkh(self):
         # http://n.bitcoin.ninja/checktx?txid=d869f854e1f8788bcff294cc83b280942a8c728de71eb709a2c29d10bfe21b7c
