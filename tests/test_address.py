@@ -1,10 +1,11 @@
 import unittest
+import secrets
 import urllib.request
 import urllib.parse
 from lxml import etree
 
-from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script
-from btctools.script import op_push
+from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type
+from btctools.script import op_push, TX
 from ECDS.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from transformations import bytes_to_hex, int_to_str
 from btctools import bech32
@@ -34,6 +35,24 @@ class TestLegacyAddress(unittest.TestCase):
 
         self.assertEqual(public.lower(), my_pubkey.hex())
         self.assertEqual(pubkey_to_address(my_pubkey), address)
+        self.assertEqual(address_type(address), TX.P2PKH)
+
+    def test_p2sh(self):
+        script = secrets.token_bytes(32)
+        scripthash = hash160(script)
+
+        payload = {'RIPEMDWithHash': '05' + bytes_to_hex(scripthash)}
+        data = urllib.parse.urlencode(payload).encode('ascii')
+        req = urllib.request.Request(self.url, data)
+
+        with urllib.request.urlopen(req) as response:
+            html = response.read()
+
+        tree = etree.HTML(html)
+        address = tree.find('.//input[@name="Base58"]').attrib['value']
+
+        self.assertEqual(script_to_address(script, 'P2SH'), address)
+        self.assertEqual(address_type(address), TX.P2SH)
 
 
 class TestBech32(unittest.TestCase):
@@ -49,13 +68,21 @@ class TestBech32(unittest.TestCase):
         self.assertEqual(wv, self.witver)
         self.assertEqual(bytes(decoded), bytes(witprog))
 
-    def test_bech32(self):
+    def test_p2wpkh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#examples"""
         pubkey = PublicKey.from_hex('0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798')
         self.assertEqual(bech32.encode(self.hrp, self.witver, hash160(pubkey.encode(compressed=True))), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
-        self.assertEqual(pubkey_to_address(pubkey, version='P2WPKH'), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
+        address = pubkey_to_address(pubkey, version='P2WPKH')
+        self.assertEqual(address, 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
+        self.assertEqual(address_type(address), TX.P2WPKH)
+
+    def test_p2wsh(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#examples"""
+        pubkey = PublicKey.from_hex('0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798')
         script = op_push(33) + pubkey.encode(compressed=True) + b'\xac'  # <OP_PUSH> <key> <OP_CHECKSIG>
-        self.assertEqual(script_to_address(script, 'P2WSH'), 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
+        address = script_to_address(script, 'P2WSH')
+        self.assertEqual(address, 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
+        self.assertEqual(address_type(address), TX.P2WSH)
 
     def test_valid_bech32(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#test-vectors"""
