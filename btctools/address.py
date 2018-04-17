@@ -5,6 +5,7 @@ from typing import Union, Tuple
 
 from btctools import base58, bech32
 from btctools.script import push, witness_byte
+from btctools.opcodes import TX
 from ECDS.secp256k1 import generate_keypair, PublicKey
 from transformations import int_to_bytes, hash160, sha256
 
@@ -70,6 +71,7 @@ def pubkey_to_address(pub: PublicKey, version='P2PKH') -> str:
 
 
 def script_to_address(script: bytes, version='P2SH') -> str:
+    """Redeem script to address"""
     converter = script_to_addr_versions[version.upper()]
     return converter(script)
 
@@ -85,6 +87,44 @@ def address_to_script(addr: str) -> bytes:
 
     script = witness_byte(witver) + push(bytes(witprog))
     return script
+
+
+class InvalidAddress(Exception):
+    pass
+
+
+def address_type(addr):
+    if addr.startswith(('1', '3')):
+        try:
+            address = base58.decode(addr).rjust(25, b'\x00')
+        except base58.Base58DecodeError as e:
+            raise InvalidAddress(f"{addr} : {e}") from None
+        payload, checksum = address[:-4], address[-4:]
+        version_byte, digest = payload[0], payload[1:].rjust(20, b'\x00')
+        if len(digest) != 20:
+            raise InvalidAddress(f"{addr} : Bad Payload") from None
+        if sha256(sha256(payload))[:4] != checksum:
+            raise InvalidAddress(f"{addr} : Invalid checksum") from None
+        try:
+            return {0x00: TX.P2PKH, 0x05: TX.P2SH}[version_byte]
+        except KeyError:
+            raise InvalidAddress(f"{addr} : Invalid version byte") from None
+    elif addr.startswith('bc1'):
+        try:
+            witness_version, witness_program = bech32.decode(HRP, addr)
+        except bech32.Bech32DecodeError as e:
+            raise InvalidAddress(f"{addr} : {e}") from None
+
+        if not witness_version == 0x00:
+            raise InvalidAddress(f"{addr} : Invalid witness version") from None
+        if len(witness_program) == 20:
+            return TX.P2WPKH
+        elif len(witness_program) == 32:
+            return TX.P2WSH
+        else:
+            raise InvalidAddress(f"{addr} : Invalid witness program") from None
+    else:
+        raise InvalidAddress(f"{addr} : Invalid leading character") from None
 
 
 def vanity(prefix: str) -> Tuple[str, str, str]:

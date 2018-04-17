@@ -4,6 +4,10 @@ ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 BASE = len(ALPHABET)
 
 
+class Base58DecodeError(Exception):
+    pass
+
+
 def encode(bts: bytes) -> str:
     n = bytes_to_int(bts)
     leading_zero_bytes = len(bts) - len(bts.lstrip(b'\x00'))
@@ -20,6 +24,9 @@ def decode(b58: str) -> bytes:
     partial_sum = 0
     exponent = 0
     for digit in reversed(b58):
-        partial_sum += ALPHABET.index(digit) * BASE**exponent
+        try:
+            partial_sum += ALPHABET.index(digit) * BASE**exponent
+        except ValueError:
+            raise DecodingError('Bad Byte') from None
         exponent += 1
     return int_to_bytes(partial_sum)
