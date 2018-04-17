@@ -135,6 +135,17 @@ class PublicKey:
         return pubkey_to_address(self, addrtype)
 
 
+def is_pubkey(hexstr):
+    try:
+        if isinstance(hexstr, bytes):
+            PublicKey.decode(hexstr)
+        else:
+            PublicKey.from_hex(hexstr)
+    except AssertionError:
+        return False
+    return True
+
+
 def generate_keypair():
     private = PrivateKey.random()
     public = private.to_public()

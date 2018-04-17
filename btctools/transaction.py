@@ -3,9 +3,10 @@ from collections import deque
 from time import sleep
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
+from message import is_signature
 from btctools.opcodes import SIGHASH, TX
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
-from ECDS.secp256k1 import PrivateKey, CURVE
+from ECDS.secp256k1 import PrivateKey, CURVE, is_pubkey
 
 
 concat = b''.join
@@ -153,8 +154,22 @@ class Input:
         pass
 
     def is_signed(self) -> bool:
-        # TODO
         output_type = self.ref().type()
+        nested = self.is_nested()
+        if output_type == TX.P2PKH:
+            sig, pub = self.asm().split(' ')
+            return is_signature(sig[:-2]) and is_pubkey(pub)
+        elif output_type == TX.P2WPKH or nested == TX.P2WPKH:
+            try:
+                return is_signature(self.witness[0][:-1])  # and is_pubkey(self.witness[-1])
+            except ScriptValidationError:
+                return False
+        elif output_type == TX.P2WSH or nested == TX.P2WSH:
+            return any(is_signature(bytes_to_hex(item)[:-2]) for item in self.witness)
+        elif output_type == TX.P2SH:
+            return any((is_signature(item[:-2]) for item in self.asm().split(' ')))
+        elif output_type == TX.P2PK:
+            return is_signature(self.asm()[:-2])
 
     def json(self):
         result = {

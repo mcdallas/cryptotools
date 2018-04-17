@@ -134,3 +134,14 @@ class Signature:
 
     def hex(self):
         return bytes_to_hex(self.encode())
+
+
+def is_signature(hexstr):
+    try:
+        if isinstance(hexstr, bytes):
+            Signature.decode(hexstr)
+        else:
+            Signature.from_hex(hexstr)
+    except (AssertionError, IndexError):
+        return False
+    return True

@@ -194,6 +194,8 @@ class TestTransaction(unittest.TestCase):
         for tx_id in tx_ids:
             tx = Transaction.get(tx_id)
             assert tx.verify(), f"{tx_id}"
+            for inp in tx.inputs:
+                assert inp.is_signed()
 
     def test_deserialize_p2wpkh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Example"""
