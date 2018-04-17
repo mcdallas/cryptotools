@@ -39,6 +39,8 @@ class Input:
         self._referenced_tx = referenced_tx
         self._referenced_output = None
         self.witness = witness
+        self._parent = None
+        self.parent_id = None
 
     def ref(self):
         """The output that this input is spending"""
@@ -131,11 +133,28 @@ class Input:
         assert len(sequence) == 4, 'Invalid input format'
         return cls(output=output, index=index, script=script, sequence=sequence)
 
+    @property
+    def parent(self):
+        if not self._parent:
+            if self.parent_id:
+                self._parent = Transaction.get(self.parent_id)
+            else:
+                raise AttributeError('No reference to parent tx')
+        return self._parent
+
     def __repr__(self):
-        return f"{self.__class__.__name__}(from={bytes_to_hex(self.output)})"
+        return f"{self.__class__.__name__}(from={bytes_to_hex(self.output)}, index={self.index})"
 
     def asm(self):
         return asm(self.script)
+
+    def sign(self, private):
+        # TODO : place signature in scriptSig
+        pass
+
+    def is_signed(self) -> bool:
+        # TODO
+        output_type = self.ref().type()
 
     def json(self):
         result = {
@@ -162,6 +181,9 @@ class Output:
             self.value = value
 
         self.script = script
+        self.parent_id = None
+        self._parent = None
+        self.index = None
 
     @property
     def value(self):
@@ -173,6 +195,15 @@ class Output:
 
     def serialize(self):
         return self._value[::-1] + serialize(self.script)
+
+    @property
+    def parent(self):
+        if not self._parent:
+            if self.parent_id:
+                self._parent = Transaction.get(self.parent_id)
+            else:
+                raise AttributeError('No reference to parent tx')
+        return self._parent
 
     @classmethod
     def deserialize(cls, bts):
@@ -201,6 +232,20 @@ class Output:
             return TX.P2PK
         else:
             raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")
+
+    def spend(self):
+        """Creates an empty input that spends this output"""
+        if not isinstance(self.parent, Transaction) or self.index is None:
+            raise AttributeError('This output has no reference to its parent tx. Set the attribute first or use the Output.get constructor')
+        return Input(output=self.parent.txid()[::-1], index=self.index, script=b'')
+
+    @staticmethod
+    def get(txid, i):
+        tx = Transaction.get(txid)
+        out = tx.outputs[i]
+        out._parent = tx
+        out.index = i
+        return out
 
     def __repr__(self):
         return f"{self.__class__.__name__}(type={self.type()}, value={self.value/10**8} BTC)"
@@ -329,7 +374,13 @@ class Transaction:
 
         lock_time = pop(4)
         assert not tx, f"{len(tx)} Leftover bytes"
-        return cls(inputs=inputs, outputs=outputs, version=version, lock_time=lock_time)
+        transaction = cls(inputs=inputs, outputs=outputs, version=version, lock_time=lock_time)
+        # Set references
+        for out in transaction.outputs:
+            out._parent = transaction
+        for inp in transaction.inputs:
+            inp._parent = transaction
+        return transaction
 
     def __repr__(self):
         return f"{self.__class__.__name__}(inputs={len(self.inputs)}, outputs={len(self.outputs)})"
@@ -450,8 +501,8 @@ class Transaction:
 
         return concat([nversion, hashprevouts, hashsequence, outpoint, scriptcode, value, nsequence, hashoutputs, nlocktime, sighash])
 
-    def sign_input(self, i: int, private: PrivateKey, hashcode=SIGHASH.ALL):
-        """Sign the i-th input"""
+    def sign_input(self, i: int, private: PrivateKey, hashcode=SIGHASH.ALL) -> 'Signature':
+        """Sign the i-th input. Returns the signature."""
         digest = self.sighash(i=i, hashcode=hashcode)
         sig = private.sign_hash(digest)
         # https://github.com/bitcoin/bips/blob/master/bip-0146.mediawiki#low_s
@@ -459,8 +510,16 @@ class Transaction:
             sig.s = CURVE.N - sig.s
         return sig
 
+    def sign(self, i, private, hashcode=SIGHASH.ALL):
+        # TODO : sign all inputs
+        pass
+
     def verify(self, i=None):
         """Run the script for the i-th input or all the inputs"""
+        sum_inputs = sum(inp.ref().value for inp in self.inputs)
+        sum_outputs = sum(out.value for out in self.outputs)
+        if sum_outputs > sum_inputs:
+            raise ValidationError("Value of outputs is greater than value of inputs")
         if i is not None:
             vm = VM(self, i)
             return vm.verify()
@@ -471,4 +530,22 @@ class Transaction:
                 results.append(vm.verify())
 
             return all(results)
+
+
+def spend(script, pubkey, output=None, txid=None, index=None):
+    if isinstance(output, Output):
+        pass
+    elif txid is not None and isinstance(index, int):
+        output = Output.get(txid, index)
+    else:
+        raise ValueError("You must provide either an output or a txid and index of the output you are trying to spend")
+
+    inp = output.spend()
+    if output.type() == TX.P2PK:
+        pass
+
+
+def spend_p2pk(output, private):
+    assert output.type() == TX.P2PK, 'Wrong output type'
+    inp = output.spend()
 

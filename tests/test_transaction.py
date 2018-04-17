@@ -178,7 +178,7 @@ class TestTransaction(unittest.TestCase):
     def test_verification(self):
         tx_ids = [
             'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
-            '12b5633bad1f9c167d523ad1aa1947b2732a865bf5414eab2f9e5ae5d5c191ba',
+            '12b5633bad1f9c167d523ad1aa1947b2732a865bf5414eab2f9e5ae5d5c191ba',  # P2PK
             # 'a38d3393a32d06fe842b35ebd68aa2b6a1ccbabbbc244f67462a10fd8c81dba5',  # coinbase
             'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',

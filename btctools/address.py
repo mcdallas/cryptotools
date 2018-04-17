@@ -6,8 +6,9 @@ from typing import Union, Tuple
 from btctools import base58, bech32
 from btctools.script import push, witness_byte
 from btctools.opcodes import TX
+from btctools.transaction import Input, Output, Transaction
 from ECDS.secp256k1 import generate_keypair, PublicKey
-from transformations import int_to_bytes, hash160, sha256
+from transformations import int_to_bytes, hex_to_bytes, hash160, sha256
 
 HRP = 'bc'
 
@@ -91,6 +92,41 @@ def address_to_script(addr: str) -> bytes:
 
 class InvalidAddress(Exception):
     pass
+
+
+class Address:
+    def __init__(self, address):
+        self.address = address
+        self._outputs = []
+
+    @property
+    def utxos(self):
+        if not self._outputs:
+            import urllib.request
+            import json
+            url = 'https://blockchain.info/unspent?active=' + self.address
+
+            req = urllib.request.Request(url)
+            outputs = []
+            with urllib.request.urlopen(req) as resp:
+                assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
+                data = json.loads(resp.read().decode())
+            for item in data['unspent_outputs']:
+                out = Output(value=item['value'], script=hex_to_bytes(item['script']))
+                out.parent_id = item['tx_hash_big_endian']
+                out.index = item['tx_output_n']
+                outputs.append(out)
+            self._outputs = outputs
+        return self._outputs
+
+    def type(self):
+        return address_type(self.address)
+
+    def balance(self):
+        return sum((out.value for out in self.utxo()))/10**8
+
+    def send(self, to: dict) -> Transaction:
+        pass
 
 
 def address_type(addr):

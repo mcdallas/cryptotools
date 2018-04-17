@@ -14,6 +14,7 @@ __all__ = [
     'Point',
     'pubkey_to_address',
     'script_to_address',
+    'Address',
     'op_push',
     'push',
     'address_to_script',
