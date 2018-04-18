@@ -24,6 +24,10 @@ class SIGHASH(Enum):
     def is_all(self):
         return self.value in (0x01, 0x81)
 
+    @property
+    def byte(self):
+        return int_to_bytes(self.value)
+
 
 @unique
 class TX(Enum):

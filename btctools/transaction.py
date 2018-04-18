@@ -83,9 +83,9 @@ class Input:
     def serialize_witness(self):
         if not self.segwit:
             return b'\x00'
-        result = int_to_bytes(len(self.witness))
+        result = var_int(len(self.witness))
         for stack_item in self.witness:
-            result += int_to_bytes(len(stack_item)) + stack_item
+            result += serialize(stack_item)
         return result
 
     def outpoint(self):
@@ -154,7 +154,6 @@ class Input:
         return asm(self.script)
 
     def sign(self, private, hashcode=SIGHASH.ALL):
-        # TODO : place signature in scriptSig
         output_type = self.ref().type()
         if self.is_signed():
             raise SigningError('Input already signed')
@@ -172,7 +171,7 @@ class Input:
         if sig.s > CURVE.N//2:
             sig.s = CURVE.N - sig.s
 
-        raw_sig = sig.encode() + int_to_bytes(hashcode.value)
+        raw_sig = sig.encode() + hashcode.byte
         if output_type == TX.P2PKH:
             pub = private.to_public().encode(compressed=False)
             self.clear()
@@ -282,7 +281,7 @@ class Output:
             return TX.P2WSH
         elif self.script.startswith(b'\x00' + OP.PUSH20.byte) and len(self.script) == 22:
             return TX.P2WPKH
-        elif self.script.startswith(b'\x41\x04') and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 67:  # uncompressed PK
+        elif self.script.startswith(OP.PUSH65.byte + b'\x04') and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 67:  # uncompressed PK
             return TX.P2PK
         elif self.script.startswith((b'\x21\x03', b'\x21\x02')) and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 35:  # compressed PK
             return TX.P2PK
@@ -467,6 +466,7 @@ class Transaction:
 
     @classmethod
     def get(cls, txhash):
+        """Construct a transaction from it's tx id by getting the raw data from blockchain.info"""
         import urllib.request
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
@@ -492,7 +492,7 @@ class Transaction:
 
         return sha256(sha256(preimage))
 
-    def signature_form_legacy(self, i, script=None, hashcode=SIGHASH.ALL):
+    def signature_form_legacy(self, i, hashcode=SIGHASH.ALL):
         """Create the object to be signed for the i-th input of this transaction"""
         # Recreates the object that needs to be signed which is not the actual transaction
         # More info at:
@@ -504,9 +504,7 @@ class Transaction:
         tx = deepcopy(self)
 
         # the input references a previous output from which we need the scriptPubKey
-        # if it was not provided get it from blockchain.info
-        if script is None:
-            script = tx.inputs[i].ref().script
+        script = tx.inputs[i].ref().script
 
         for input in tx.inputs:
             input.script = b''
@@ -561,7 +559,7 @@ class Transaction:
             if inp.ref().type() not in (TX.P2SH, TX.P2WSH):
                 inp.sign(private=private, hashcode=hashcode)
 
-    def verify(self, i=None):
+    def verify(self, i=None, debug=False):
         """Run the script for the i-th input or all the inputs"""
         sum_inputs = sum(inp.ref().value for inp in self.inputs)
         sum_outputs = sum(out.value for out in self.outputs)
@@ -569,7 +567,7 @@ class Transaction:
             raise ValidationError("Value of outputs is greater than value of inputs")
         if i is not None:
             vm = VM(self, i)
-            return vm.verify()
+            return vm.verify(debug=debug)
         else:
             results = []
             for idx in range(len(self.inputs)):

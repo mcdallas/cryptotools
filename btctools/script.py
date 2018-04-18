@@ -347,15 +347,10 @@ class VM:
         #  3]
 
         n = self.pop()
-
-        keys = []
-        for _ in range(n):
-            keys.append(PublicKey.decode(self.pop()))
+        keys = [PublicKey.decode(self.pop()) for _ in range(n)]
 
         m = self.pop()
-        raw_signatures = []
-        for _ in range(m):
-            raw_signatures.append(self.pop())
+        raw_signatures = [self.pop() for _ in range(m)]
 
         _ = self.pop()  # extra bytes in stack due to original implementation bug
 
