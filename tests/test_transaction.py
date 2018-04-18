@@ -66,10 +66,10 @@ class TestTransaction(unittest.TestCase):
         )
 
         trans = Transaction.deserialize(tx)
-        assert len(trans.inputs) == 1
-        assert len(trans.outputs) == 1
-        assert trans.json()['txid'] == '96534da2f213367a6d589f18d7d6d1689748cd911f8c33a9aee754a80de166be'
-        assert trans.serialize() == tx
+        self.assertEqual(len(trans.inputs), 1)
+        self.assertEqual(len(trans.outputs), 1)
+        self.assertEqual(trans.json()['txid'], '96534da2f213367a6d589f18d7d6d1689748cd911f8c33a9aee754a80de166be')
+        self.assertEqual(trans.serialize(), tx)
 
         tx = '0100000018c24951446d11d904acdb5131e944e1466fcd4cf830b9cd5f128816c94ba5ce81000000006a473044022' \
              '041b174db2f7c0105cda6063aa28b2652718c754c04e0bfb5258cb7146de2132202205a118dbd6e87a0f11199c7e2' \
@@ -155,10 +155,10 @@ class TestTransaction(unittest.TestCase):
              '55880d2fb5e5a8faf83968f88ac00000000'
 
         trans = Transaction.from_hex(tx)
-        assert len(trans.inputs) == 24
-        assert len(trans.outputs) == 7
-        assert trans.json()['txid'] == 'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b'
-        assert trans.hex() == tx
+        self.assertEqual(len(trans.inputs), 24)
+        self.assertEqual(len(trans.outputs), 7)
+        self.assertEqual(trans.json()['txid'], 'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b')
+        self.assertEqual(trans.hex(), tx)
 
     def test_serialize(self):
 
@@ -173,7 +173,7 @@ class TestTransaction(unittest.TestCase):
                 tx = f.read()
 
             trans = Transaction.from_hex(tx)
-            assert trans.hex() == tx
+            self.assertEqual(trans.hex(), tx)
 
     def test_verification(self):
         tx_ids = [
@@ -193,9 +193,9 @@ class TestTransaction(unittest.TestCase):
 
         for tx_id in tx_ids:
             tx = Transaction.get(tx_id)
-            assert tx.verify(), f"{tx_id}"
+            self.assertTrue(tx.verify())
             for inp in tx.inputs:
-                assert inp.is_signed()
+                self.assertTrue(inp.is_signed())
 
     def test_signing(self):
         tx_ids = [
@@ -219,12 +219,12 @@ class TestTransaction(unittest.TestCase):
             tx = Transaction.get(tx_id)
             for inp in tx.inputs:
                 if inp.ref().type() not in (TX.P2WSH, TX.P2SH):
-                    assert inp.is_signed()
+                    self.assertTrue(inp.is_signed())
                     inp.clear()
-                    assert not inp.is_signed()
+                    self.assertFalse(inp.is_signed())
                     inp.sign(private)
-                    assert inp.is_signed()
-                    assert not tx.verify(inp.tx_index)
+                    self.assertTrue(inp.is_signed())
+                    self.assertFalse(tx.verify(inp.tx_index))
 
     def test_deserialize_p2wpkh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Example"""
@@ -253,25 +253,25 @@ class TestTransaction(unittest.TestCase):
         txid = 'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794'
 
         trans = Transaction.from_hex(tx)
-        assert len(trans.inputs) == 3
-        assert len(trans.outputs) == 3
-        assert trans.hex() == tx
-        assert trans.json()['txid'] == txid
-        assert trans.json()['size'] == 599
+        self.assertEqual(len(trans.inputs), 3)
+        self.assertEqual(len(trans.outputs), 3)
+        self.assertEqual(trans.hex(), tx)
+        self.assertEqual(trans.json()['txid'], txid)
+        self.assertEqual(trans.json()['size'], 599)
         i1, i2, i3 = trans.inputs
-        assert i1.json()['witness'] == [
+        self.assertEqual(i1.json()['witness'], [
                 "30440220629a1afef02a3c9c7e9988557b847759b6937f60740fc3ed11fa21601f9be4fa02200ad54d20172bea8dfa16dc8ebc7fcd49ebbddc1b3b8da189bfdc0e02022be75301",
                 "02dc31388cc2fe58ecdbbc57c3c8c8b28a8797b2aeb6ac235c6ea654223f661e51"
-            ]
-        assert i1.json()['scriptSig']['hex'] == "160014124646d4c8496ee6b2b34ab5c04bf4126f3d27b0"
-        assert i2.json()['witness'] == [
+            ])
+        self.assertEqual(i1.json()['scriptSig']['hex'], "160014124646d4c8496ee6b2b34ab5c04bf4126f3d27b0")
+        self.assertEqual(i2.json()['witness'], [
                 "3045022100ae8ae6707a3701625e89ee4fcdc53f7d512509f2cc4d89cf42f1ce74ac8d8a5e02206c20b58e4eebc4105f497d9cf95537afe03c75c461f1dd6935728278194bc8f301",
                 "037e4c93a8f7f48647af7c6c0651714516f4ff4d991e40f5cb9a76d150460a7c4a"
-            ]
-        assert i2.sequence == 4294967295
+            ])
+        self.assertEqual(i2.sequence, 4294967295)
         o1, o2, o3 = trans.outputs
-        assert o1.json()['scriptPubKey']['hex'] == "a914bbc85a4bfb82a4a1771cd2b22b791d9a3a61c30187"
-        assert o2.value == 0.26610337 * 10**8
+        self.assertEqual(o1.json()['scriptPubKey']['hex'], "a914bbc85a4bfb82a4a1771cd2b22b791d9a3a61c30187")
+        self.assertEqual(o2.value, 0.26610337 * 10**8)
 
     def test_digest_p2wpkh(self):
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#native-p2wpkh
@@ -282,11 +282,11 @@ class TestTransaction(unittest.TestCase):
 
         sighash = sha256(sha256(tx.signature_form_segwit(1)))
 
-        assert bytes_to_hex(sighash) == 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670'
+        self.assertEqual(bytes_to_hex(sighash), 'c37af31116d1b27caf68aae9e3ac82f1477929014d5b917657d0eb49478cb670')
         public = PublicKey.from_hex('025476c2e83188368da1ff3e292e7acafcdb3566bb0ad253f62fc70f07aeee6357')
 
         sig = Signature.from_hex('304402203609e17b84f6a7d30c80bfa610b5b4542f32a8a0d5447a12fb1366d7f01cc44a0220573a954c4518331561406f90300e8f3358f51928d43c212a8caed02de67eebee')
-        assert sig.verify_hash(sighash, public)
+        self.assertTrue(sig.verify_hash(sighash, public))
 
     def test_digest_p2sh_p2wpkh(self):
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#p2sh-p2wpkh
@@ -298,11 +298,11 @@ class TestTransaction(unittest.TestCase):
         inp.script = serialize(hex_to_bytes('001479091972186c449eb1ded22b78e40d009bdf0089'))
 
         sighash = tx.sighash(0)
-        assert bytes_to_hex(sighash) == '64f3b0f4dd2bb3aa1ce8566d220cc74dda9df97d8490cc81d89d735c92e59fb6'
+        self.assertEqual(bytes_to_hex(sighash), '64f3b0f4dd2bb3aa1ce8566d220cc74dda9df97d8490cc81d89d735c92e59fb6')
         sig = Signature.from_hex('3044022047ac8e878352d3ebbde1c94ce3a10d057c24175747116f8288e5d794d12d482f0220217f36a485cae903c713331d877c1f64677e3622ad4010726870540656fe9dcb')
         pub = PublicKey.from_hex('03ad1d8e89212f0b92c74d23bb710c00662ad1470198ac48c43f7d6f93a2a26873')
 
-        assert sig.verify_hash(sighash, pub)
+        self.assertTrue(sig.verify_hash(sighash, pub))
 
     def test_digest_p2sh_p2wsh(self):
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#native-p2wsh
@@ -315,22 +315,22 @@ class TestTransaction(unittest.TestCase):
         inp.witness = [hex_to_bytes('56210307b8ae49ac90a048e9b53357a2354b3334e9c8bee813ecb98e99a7e07e8c3ba32103b28f0c28bfab54554ae8c658ac5c3e0ce6e79ad336331f78c428dd43eea8449b21034b8113d703413d57761b8b9781957b8c0ac1dfe69f492580ca4195f50376ba4a21033400f6afecb833092a9a21cfdf1ed1376e58c5d1f47de74683123987e967a8f42103a6d48b1131e94ba04d9737d61acdaa1322008af9602b3b14862c07a1789aac162102d8b661b0b3302ee2f162b09e07a55ad5dfbe673a9f01d9f0c19617681024306b56ae')]
 
         sighash = tx.sighash(0, hashcode=SIGHASH.ALL)
-        assert bytes_to_hex(sighash) == '185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c'
+        self.assertEqual(bytes_to_hex(sighash), '185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c')
 
         sighash = tx.sighash(0, SIGHASH.NONE)
-        assert bytes_to_hex(sighash) == 'e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36'
+        self.assertEqual(bytes_to_hex(sighash), 'e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36')
 
         sighash = tx.sighash(0, SIGHASH.SINGLE)
-        assert bytes_to_hex(sighash) == '1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea'
+        self.assertEqual(bytes_to_hex(sighash), '1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea')
 
         sighash = tx.sighash(0, SIGHASH.ALL_ANYONECANPAY)
-        assert bytes_to_hex(sighash) == '2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e'
+        self.assertEqual(bytes_to_hex(sighash), '2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e')
 
         sighash = tx.sighash(0, SIGHASH.NONE_ANYONECANPAY)
-        assert bytes_to_hex(sighash) == '781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a'
+        self.assertEqual(bytes_to_hex(sighash), '781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a')
 
         sighash = tx.sighash(0, SIGHASH.SINGLE_ANYONECANPAY)
-        assert bytes_to_hex(sighash) == '511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b'
+        self.assertEqual(bytes_to_hex(sighash), '511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b')
 
     def test_verify_p2wpkh(self):
         # http://n.bitcoin.ninja/checktx?txid=d869f854e1f8788bcff294cc83b280942a8c728de71eb709a2c29d10bfe21b7c
@@ -339,7 +339,7 @@ class TestTransaction(unittest.TestCase):
         ref = Transaction.from_hex('0100000001b0ac96e3731db370c5ca83bad90a427d1687b65bc89fa2aef2ceeb567511e59f000000006a473044022021483045c74332e0cdf2ba3c46a7ed2abdfd7a04cd3eef79238e394a9285c8c00220536adca2c48231fa8be7fa0a24e75b0f8ecced44967652e89dd19f7fd03617a70121038262a6c6cec93c2d3ecd6c6072efea86d02ff8e3328bbd0242b20af3425990acffffffff05a8f8c223000000001976a9141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92888ac00e1f505000000001600141d7cd6c75c2e86f4cbf98eaed221b30bd9a0b92800e1f5050000000022002001d5d92effa6ffba3efa379f9830d0f75618b13393827152d26e4309000e88b100e1f5050000000017a914901c8694c03fafd5522810e0330f26e67a8533cd8700e1f5050000000017a91485b9ff0dcb34cf513d6412c6cf4d76d9dc2401378700000000')
 
         tx.inputs[0]._referenced_tx = ref
-        assert tx.verify()
+        self.assertTrue(tx.verify())
 
     def test_verify_p2wsh(self):
         # https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
