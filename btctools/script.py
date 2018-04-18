@@ -44,6 +44,8 @@ def push(script: bytes) -> bytes:
 
 
 def depush(script: bytes) -> bytes:
+    if len(script) == 0:
+        raise ScriptValidationError('Empty script')
     push_byte, script = script[0], script[1:]
     op = OP(push_byte)
     if push_byte not in range(1, 76):
@@ -159,7 +161,10 @@ class VM:
 
     def pop(self):
         """Pop top item from the stack"""
-        return self.stack.pop()
+        try:
+            return self.stack.pop()
+        except IndexError:
+            raise OperationFailure('Popping from empty stack')
 
     def push(self, item):
         """Push item to the top of the stack"""
@@ -172,7 +177,10 @@ class VM:
         if not operation:
             raise NotImplementedError(str(opcode))
         else:
-            operation()
+            try:
+                operation()
+            except Exception as e:
+                raise OperationFailure(e)
 
     def step(self):
         """Executes one script operation"""
@@ -180,18 +188,24 @@ class VM:
         opcode = OP(byte)
         self.op(opcode)
 
-    def verify(self):
+    def verify(self, debug=False):
         tx_type = self.input.ref().type()
         if tx_type in (TX.P2PKH, TX.P2PK):
-            return self.verify_legacy()
+            verifier = self.verify_legacy
         elif tx_type == TX.P2SH:
-            return self.verify_p2sh()
+            verifier = self.verify_p2sh
         elif tx_type == TX.P2WPKH:
-            return self.verify_p2wpkh()
+            verifier = self.verify_p2wpkh
         elif tx_type == TX.P2WSH:
-            return self.verify_p2wsh()
+            verifier = self.verify_p2wsh
         else:
             raise InvalidTransaction(f"Unknown transaction type {tx_type}")
+        try:
+            return verifier()
+        except OperationFailure:
+            if not debug:
+                return False
+            raise
 
     def verify_legacy(self):
         while self.script:
@@ -200,8 +214,6 @@ class VM:
 
     def verify_p2sh(self):
         self.step()
-        # self.step()
-        # self.step()
 
         state = VM(self.tx, self.index)
         state.stack = deepcopy(self.stack)
@@ -211,7 +223,7 @@ class VM:
         if first_verification is False:
             return False
 
-        # determine if it is a normal P2SH or a nested P2WKH into a P2SH
+        # determine if it is a normal P2SH or a nested P2WKH/P2WSH into a P2SH
         nested = self.input.is_nested()
         if nested == TX.P2WPKH:
             # version = version_byte(redeem)
@@ -223,7 +235,7 @@ class VM:
 
             return state.verify_p2wpkh()
         elif nested == TX.P2WSH:
-            state.scriptPubKey = redeem  # state.scriptSig
+            state.scriptPubKey = redeem
             state.scriptSig = b''
             return state.verify_p2wsh()
 
@@ -243,8 +255,6 @@ class VM:
             raise InvalidTransaction(f'Invalid witness for a {TX.P2WPKH} transaction')
 
         self.stack = list(witness)
-        # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-        # self.script = b'\x76\xa9' + push(witness_program(self.scriptPubKey)) + b'\x88\xac'
         self.script = self.input.scriptcode()
 
         return self.verify_legacy() and len(self.stack) == 0
@@ -303,7 +313,7 @@ class VM:
     def OP_VERIFY(self):
         """Marks transaction as invalid if top stack value is not true. The top stack value is removed."""
         if not self.pop() is True:
-            raise OperationFailure
+            raise OperationFailure('Top stack item is not True')
 
     def OP_EQUALVERIFY(self):
         """Same as OP_EQUAL, but runs OP_VERIFY afterward."""
@@ -317,8 +327,6 @@ class VM:
         sig = Signature.decode(extended_sig[:-1])
         hashcode = SIGHASH(extended_sig[-1])
 
-        # signed_obj = self.tx.signature_form(i=self.index, hashcode=hashcode)
-        # hashed = sha256(sha256(signed_obj))
         sighash = self.tx.sighash(i=self.index, hashcode=hashcode)
         self.push(sig.verify_hash(sighash, pub))
 
@@ -327,8 +335,17 @@ class VM:
         self.push(b'')
 
     def OP_CHECKMULTISIG(self):
-        # ['', '3045022100c38f1d0e340f4308b7f6e4bef0c8668e84793370924844a1076cc986f37047af02207cc29b61e85dc580ce85e01858e2e47eb3b8a80472ad784eb74538045e8172e801', '30450221009a6abea495730976b69f255282ee0c488e49769138b7048e749dd5215bdf8120022069f690fcaf5dba05f0537911b16b2868087440eb55a19dc6e89bcb83f1f35c6501', 2, '02d271610ba72d9b0948ea0821fac77e0e6d10234a266b4828671a86a59073bb30', '0359446555d1c389782468191250c007a98393eb6e9db64649cd7ed1e7f9ca0cf3', '023779ee80b4a940503b1d630e7a3934503eecba5d571111f30841cdfbce0e8397', 3]
-        # multisig m out of n
+        # Multisig m out of n
+        # The stack at this point should look something like this
+        # ['',
+        #  '3045022100c38f1d0e340f4308b7f6e4bef0c8668e84793370924844a1076cc986f37047af02207cc29b61e85dc580ce85e01858e2e47eb3b8a80472ad784eb74538045e8172e801',
+        #  '30450221009a6abea495730976b69f255282ee0c488e49769138b7048e749dd5215bdf8120022069f690fcaf5dba05f0537911b16b2868087440eb55a19dc6e89bcb83f1f35c6501',
+        #  2,
+        #  '02d271610ba72d9b0948ea0821fac77e0e6d10234a266b4828671a86a59073bb30',
+        #  '0359446555d1c389782468191250c007a98393eb6e9db64649cd7ed1e7f9ca0cf3',
+        #  '023779ee80b4a940503b1d630e7a3934503eecba5d571111f30841cdfbce0e8397',
+        #  3]
+
         n = self.pop()
 
         keys = []

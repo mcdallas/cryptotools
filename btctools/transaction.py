@@ -6,7 +6,7 @@ from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_byt
 from message import is_signature
 from btctools.opcodes import SIGHASH, TX
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
-from ECDS.secp256k1 import PrivateKey, CURVE, is_pubkey
+from ECDS.secp256k1 import CURVE, is_pubkey
 
 
 concat = b''.join
@@ -28,6 +28,10 @@ class ValidationError(TransactionError):
     pass
 
 
+class SigningError(TransactionError):
+    pass
+
+
 class Input:
     def __init__(self, output, index, script, sequence=b'\xff\xff\xff\xff', witness=None, referenced_tx=None):
         # Parameters should be bytes as transmitted i.e reversed
@@ -41,6 +45,7 @@ class Input:
         self._referenced_output = None
         self.witness = witness
         self._parent = None
+        self.tx_index = None
         self.parent_id = None
 
     def ref(self):
@@ -48,7 +53,7 @@ class Input:
         if self._referenced_output is not None:
             return self._referenced_output
         if self._referenced_tx is None or self._referenced_tx.txid()[::-1] != self.output:
-            # Gets the transaction from bitcoin.info and caches the result
+            # Gets the transaction from blockchain.info and caches the result
             self._referenced_tx = Transaction.get(self.output)
         return self._referenced_tx.outputs[self.index]
 
@@ -126,13 +131,13 @@ class Input:
         else:
             raise ScriptValidationError(f"No scriptcode for {output_type}")
 
-    @classmethod
-    def deserialize(cls, bts):
-        output, index, script_len = bts[:32], bts[32:36], bts[36:37]
-        script_end = 37 + bytes_to_int(script_len)
-        script, sequence = bts[37:script_end], bts[script_end:]
-        assert len(sequence) == 4, 'Invalid input format'
-        return cls(output=output, index=index, script=script, sequence=sequence)
+    # @classmethod
+    # def deserialize(cls, bts):
+    #     output, index, script_len = bts[:32], bts[32:36], bts[36:37]
+    #     script_end = 37 + bytes_to_int(script_len)
+    #     script, sequence = bts[37:script_end], bts[script_end:]
+    #     assert len(sequence) == 4, 'Invalid input format'
+    #     return cls(output=output, index=index, script=script, sequence=sequence)
 
     @property
     def parent(self):
@@ -149,15 +154,48 @@ class Input:
     def asm(self):
         return asm(self.script)
 
-    def sign(self, private):
+    def sign(self, private, hashcode=SIGHASH.ALL):
         # TODO : place signature in scriptSig
-        pass
+        output_type = self.ref().type()
+        if self.is_signed():
+            raise SigningError('Input already signed')
+        try:
+            tx = self.parent
+            idx = self.tx_index
+            assert idx is not None
+        except (AttributeError, AssertionError):
+            raise SigningError("Reference to parent transaction missing")
+
+        sighash = tx.sighash(idx, hashcode=hashcode)
+        sig = private.sign_hash(sighash)
+
+        # https://github.com/bitcoin/bips/blob/master/bip-0146.mediawiki#low_s
+        if sig.s > CURVE.N//2:
+            sig.s = CURVE.N - sig.s
+
+        raw_sig = sig.encode() + int_to_bytes(hashcode.value)
+        if output_type == TX.P2PKH:
+            pub = private.to_public().encode(compressed=False)
+            self.clear()
+            self.script = push(raw_sig) + push(pub)
+        elif output_type == TX.P2WPKH:
+            pub = private.to_public().encode(compressed=True)
+            self.clear()
+            self.witness = (raw_sig, pub)
+        elif output_type == TX.P2PK:
+            self.clear()
+            self.script = push(raw_sig)
+        else:
+            raise SigningError('Cannot sign P2SH or P2WSH outputs.')
 
     def is_signed(self) -> bool:
         output_type = self.ref().type()
         nested = self.is_nested()
         if output_type == TX.P2PKH:
-            sig, pub = self.asm().split(' ')
+            try:
+                sig, pub = self.asm().split(' ')
+            except ValueError:
+                return False
             return is_signature(sig[:-2]) and is_pubkey(pub)
         elif output_type == TX.P2WPKH or nested == TX.P2WPKH:
             try:
@@ -170,6 +208,10 @@ class Input:
             return any((is_signature(item[:-2]) for item in self.asm().split(' ')))
         elif output_type == TX.P2PK:
             return is_signature(self.asm()[:-2])
+
+    def clear(self):
+        self.script = b''
+        self.witness = tuple()
 
     def json(self):
         result = {
@@ -198,7 +240,7 @@ class Output:
         self.script = script
         self.parent_id = None
         self._parent = None
-        self.index = None
+        self.tx_index = None
 
     @property
     def value(self):
@@ -220,13 +262,13 @@ class Output:
                 raise AttributeError('No reference to parent tx')
         return self._parent
 
-    @classmethod
-    def deserialize(cls, bts):
-        value, script_len = bts[:8], bts[8:9]
-        script_end = 9 + bytes_to_int(script_len)
-        script, rest = bts[9:script_end], bts[script_end:]
-        assert not rest, 'Invalid output format'
-        return cls(value=value, script=script)
+    # @classmethod
+    # def deserialize(cls, bts):
+    #     value, script_len = bts[:8], bts[8:9]
+    #     script_end = 9 + bytes_to_int(script_len)
+    #     script, rest = bts[9:script_end], bts[script_end:]
+    #     assert not rest, 'Invalid output format'
+    #     return cls(value=value, script=script)
 
     def asm(self):
         return asm(self.script)
@@ -320,14 +362,11 @@ class Transaction:
     def _deserialize(cls, tx: bytes) -> 'Transaction':
         segwit = False
         tx = deque(tx)
+
         def pop(x):
-            # nonlocal tx
-            # data = tx[:x]
             data = []
             for _ in range(x):
                 data.append(tx.popleft())
-            # assert data or x == 0, 'EOF'
-            # tx = tx[x:]
             return bytes(data)
 
         def read_var_int():
@@ -391,10 +430,12 @@ class Transaction:
         assert not tx, f"{len(tx)} Leftover bytes"
         transaction = cls(inputs=inputs, outputs=outputs, version=version, lock_time=lock_time)
         # Set references
-        for out in transaction.outputs:
+        for idx, out in enumerate(transaction.outputs):
             out._parent = transaction
-        for inp in transaction.inputs:
+            out.tx_index = idx
+        for idx, inp in enumerate(transaction.inputs):
             inp._parent = transaction
+            inp.tx_index = idx
         return transaction
 
     def __repr__(self):
@@ -516,18 +557,10 @@ class Transaction:
 
         return concat([nversion, hashprevouts, hashsequence, outpoint, scriptcode, value, nsequence, hashoutputs, nlocktime, sighash])
 
-    def sign_input(self, i: int, private: PrivateKey, hashcode=SIGHASH.ALL) -> 'Signature':
-        """Sign the i-th input. Returns the signature."""
-        digest = self.sighash(i=i, hashcode=hashcode)
-        sig = private.sign_hash(digest)
-        # https://github.com/bitcoin/bips/blob/master/bip-0146.mediawiki#low_s
-        if sig.s > CURVE.N//2:
-            sig.s = CURVE.N - sig.s
-        return sig
-
-    def sign(self, i, private, hashcode=SIGHASH.ALL):
-        # TODO : sign all inputs
-        pass
+    def sign(self, private, hashcode=SIGHASH.ALL):
+        for inp in self.inputs:
+            if inp.ref().type() not in (TX.P2SH, TX.P2WSH):
+                inp.sign(private=private, hashcode=hashcode)
 
     def verify(self, i=None):
         """Run the script for the i-th input or all the inputs"""
@@ -545,22 +578,4 @@ class Transaction:
                 results.append(vm.verify())
 
             return all(results)
-
-
-def spend(script, pubkey, output=None, txid=None, index=None):
-    if isinstance(output, Output):
-        pass
-    elif txid is not None and isinstance(index, int):
-        output = Output.get(txid, index)
-    else:
-        raise ValueError("You must provide either an output or a txid and index of the output you are trying to spend")
-
-    inp = output.spend()
-    if output.type() == TX.P2PK:
-        pass
-
-
-def spend_p2pk(output, private):
-    assert output.type() == TX.P2PK, 'Wrong output type'
-    inp = output.spend()
 
