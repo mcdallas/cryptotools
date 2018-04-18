@@ -3,8 +3,8 @@ import pathlib
 
 from btctools.transaction import Transaction, Output
 from btctools.script import push, serialize
-from btctools.opcodes import SIGHASH
-from ECDS.secp256k1 import PublicKey
+from btctools.opcodes import SIGHASH, TX
+from ECDS.secp256k1 import PublicKey, PrivateKey
 from message import Signature
 from transformations import *
 
@@ -196,6 +196,35 @@ class TestTransaction(unittest.TestCase):
             assert tx.verify(), f"{tx_id}"
             for inp in tx.inputs:
                 assert inp.is_signed()
+
+    def test_signing(self):
+        tx_ids = [
+            'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
+            '12b5633bad1f9c167d523ad1aa1947b2732a865bf5414eab2f9e5ae5d5c191ba',  # P2PK
+            # 'a38d3393a32d06fe842b35ebd68aa2b6a1ccbabbbc244f67462a10fd8c81dba5',  # coinbase
+            'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
+            'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
+            'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
+            '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
+            'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b',  # 24 inputs 7 outputs
+            '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214',  # sends to P2SH and P2WSH
+            'eba5e1e668e0d47dc28c7fff686a7f680e334e1f9740fd90f0aed3d5e9c4114a',  # spends P2WSH
+            'e5c95e9b3c8e81bf9fc4da9f069e5c40fa38cdcc0067b5706b517878298a6f7f',  # non standard sequence
+            'e694da982e1a725e3524c622932f6159a328194a9201588783393c35ac852732'  # P2SH-P2WSH
+        ]
+
+        private = PrivateKey.random()
+
+        for tx_id in tx_ids:
+            tx = Transaction.get(tx_id)
+            for inp in tx.inputs:
+                if inp.ref().type() not in (TX.P2WSH, TX.P2SH):
+                    assert inp.is_signed()
+                    inp.clear()
+                    assert not inp.is_signed()
+                    inp.sign(private)
+                    assert inp.is_signed()
+                    assert not tx.verify(inp.tx_index)
 
     def test_deserialize_p2wpkh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki#Example"""
