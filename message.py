@@ -104,6 +104,9 @@ class Signature:
         s = int_to_bytes(self.s)
         if s[0] > 0x7f:
             s = b'\x00' + s
+
+        r = r.rjust(32, b'\x00')
+        s = s.rjust(32, b'\x00')
         len_r = int_to_bytes(len(r))
         len_s = int_to_bytes(len(s))
         len_sig = int_to_bytes(len(r) + len(s) + 4)
