@@ -123,7 +123,7 @@ class Address:
         return address_type(self.address)
 
     def balance(self):
-        return sum((out.value for out in self.utxo()))/10**8
+        return sum((out.value for out in self.utxos))/10**8
 
     def send(self, to: dict) -> Transaction:
         pass
