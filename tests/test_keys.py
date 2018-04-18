@@ -7,7 +7,7 @@ from lxml import etree
 from os import urandom
 import secrets
 
-from ECDS.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
+from ECDSA.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
 from message import Signature
 from transformations import hex_to_bytes, hex_to_int
 

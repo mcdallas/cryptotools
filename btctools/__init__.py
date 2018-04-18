@@ -1,4 +1,4 @@
-from ECDS.secp256k1 import *
+from ECDSA.secp256k1 import *
 from message import Signature
 from transformations import *
 from btctools.address import *
@@ -20,6 +20,7 @@ __all__ = [
     'address_to_script',
     'vanity',
     'OP',
+    'TX',
     'SIGHASH',
     'VM',
     'asm',

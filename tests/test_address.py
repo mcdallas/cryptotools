@@ -6,7 +6,7 @@ from lxml import etree
 
 from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type
 from btctools.script import push, TX, OP
-from ECDS.secp256k1 import generate_keypair, PrivateKey, PublicKey
+from ECDSA.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from transformations import bytes_to_hex, int_to_str
 from btctools import bech32
 

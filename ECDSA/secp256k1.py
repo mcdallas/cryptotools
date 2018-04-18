@@ -1,7 +1,7 @@
 import secrets
 import message
 
-import ECDS
+import ECDSA
 from number_theory_stuff import mulinv, modsqrt
 from transformations import int_to_bytes, bytes_to_int, hex_to_int, bytes_to_hex, hex_to_bytes
 
@@ -13,10 +13,10 @@ G = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798, 0x483ADA
 # Order
 N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
 
-CURVE = ECDS.Curve(P, 0, 7, G, N, name='secp256k1')
+CURVE = ECDSA.Curve(P, 0, 7, G, N, name='secp256k1')
 
 
-class Point(ECDS.Point):
+class Point(ECDSA.Point):
 
     def __init__(self, x, y):
         super().__init__(x, y, CURVE)

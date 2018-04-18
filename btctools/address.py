@@ -7,7 +7,7 @@ from btctools import base58, bech32
 from btctools.script import push, witness_byte
 from btctools.opcodes import TX
 from btctools.transaction import Input, Output, Transaction
-from ECDS.secp256k1 import generate_keypair, PublicKey
+from ECDSA.secp256k1 import generate_keypair, PublicKey
 from transformations import int_to_bytes, hex_to_bytes, hash160, sha256
 
 HRP = 'bc'

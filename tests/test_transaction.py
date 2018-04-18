@@ -4,7 +4,7 @@ import pathlib
 from btctools.transaction import Transaction, Output
 from btctools.script import push, serialize
 from btctools.opcodes import SIGHASH, TX
-from ECDS.secp256k1 import PublicKey, PrivateKey
+from ECDSA.secp256k1 import PublicKey, PrivateKey
 from message import Signature
 from transformations import *
 

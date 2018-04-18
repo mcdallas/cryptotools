@@ -6,7 +6,7 @@ from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_byt
 from message import is_signature
 from btctools.opcodes import SIGHASH, TX, OP
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
-from ECDS.secp256k1 import CURVE, is_pubkey
+from ECDSA.secp256k1 import CURVE, is_pubkey
 
 
 concat = b''.join
@@ -37,7 +37,7 @@ class Input:
         # Parameters should be bytes as transmitted i.e reversed
         assert isinstance(output, bytes) and len(output) == 32
         self.output = output[::-1]  # referenced tx hash
-        self.index = index[::-1] if isinstance(index, int) else bytes_to_int(index[::-1])
+        self.index = index if isinstance(index, int) else bytes_to_int(index[::-1])
         assert self.index <= 0xffffffff
         self.script = script
         self.sequence = sequence[::-1]
@@ -290,20 +290,20 @@ class Output:
 
     def spend(self):
         """Creates an empty input that spends this output"""
-        if not isinstance(self.parent, Transaction) or self.index is None:
+        if not isinstance(self.parent, Transaction) or self.tx_index is None:
             raise AttributeError('This output has no reference to its parent tx. Set the attribute first or use the Output.get constructor')
-        return Input(output=self.parent.txid()[::-1], index=self.index, script=b'')
+        return Input(output=self.parent.txid()[::-1], index=self.tx_index, script=b'')
 
     @staticmethod
     def get(txid, i):
         tx = Transaction.get(txid)
         out = tx.outputs[i]
         out._parent = tx
-        out.index = i
+        out.tx_index = i
         return out
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(type={self.type()}, value={self.value/10**8} BTC)"
+        return f"{self.__class__.__name__}(type={self.type().value}, value={self.value/10**8} BTC)"
 
     def json(self, index=None):
         data = {
