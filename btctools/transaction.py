@@ -4,7 +4,7 @@ from time import sleep
 
 from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from message import is_signature
-from btctools.opcodes import SIGHASH, TX
+from btctools.opcodes import SIGHASH, TX, OP
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
 from ECDS.secp256k1 import CURVE, is_pubkey
 
@@ -115,11 +115,10 @@ class Input:
         output = self.ref()
         output_type = self.ref().type()
         if output_type == TX.P2WPKH:
-            # OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
-            return b'\x76\xa9' + push(witness_program(output.script)) + b'\x88\xac'
+            return OP.DUP.byte + OP.HASH160.byte + push(witness_program(output.script)) + OP.EQUALVERIFY.byte + OP.CHECKSIG.byte
         elif output_type == TX.P2SH:
             if self.is_nested() == TX.P2WPKH:
-                return b'\x76\xa9' + push(witness_program(self.script[1:])) + b'\x88\xac'
+                return OP.DUP.byte + OP.HASH160.byte + push(witness_program(self.script[1:])) + OP.EQUALVERIFY.byte + OP.CHECKSIG.byte
             elif self.is_nested() == TX.P2WSH:
                 return self.witness[-1]
         # elif output_type == TX.P2WPKH:
@@ -275,17 +274,17 @@ class Output:
 
     def type(self):
         """https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/script/script.cpp#L202"""
-        if self.script.startswith(b'\xa9\x14') and self.script.endswith(b'\x87') and len(self.script) == 23:
+        if self.script.startswith(OP.HASH160.byte + OP.PUSH20.byte) and self.script.endswith(OP.EQUAL.byte) and len(self.script) == 23:
             return TX.P2SH
-        elif self.script.startswith(b'\x76\xa9') and self.script.endswith(b'\x88\xac') and len(self.script) == 25:
+        elif self.script.startswith(OP.DUP.byte + OP.HASH160.byte) and self.script.endswith(OP.EQUALVERIFY.byte + OP.CHECKSIG.byte) and len(self.script) == 25:
             return TX.P2PKH
-        elif self.script.startswith(b'\x00\x20') and len(self.script) == 34:
+        elif self.script.startswith(b'\x00' + OP.PUSH32.byte) and len(self.script) == 34:
             return TX.P2WSH
-        elif self.script.startswith(b'\x00\x14') and len(self.script) == 22:
+        elif self.script.startswith(b'\x00' + OP.PUSH20.byte) and len(self.script) == 22:
             return TX.P2WPKH
-        elif self.script.startswith(b'\x41\x04') and self.script.endswith(b'\xac') and len(self.script) == 67:  # uncompressed PK
+        elif self.script.startswith(b'\x41\x04') and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 67:  # uncompressed PK
             return TX.P2PK
-        elif self.script.startswith((b'\x21\x03', b'\x21\x02')) and self.script.endswith(b'\xac') and len(self.script) == 35:  # compressed PK
+        elif self.script.startswith((b'\x21\x03', b'\x21\x02')) and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 35:  # compressed PK
             return TX.P2PK
         else:
             raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")

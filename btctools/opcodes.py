@@ -1,4 +1,5 @@
 from enum import Enum, unique
+from transformations import int_to_bytes
 
 
 @unique
@@ -234,3 +235,7 @@ class OP(Enum):
     def __repr__(self):
         s = super().__repr__()
         return s.replace('.', '_').replace('__', '_')
+
+    @property
+    def byte(self):
+        return int_to_bytes(self.value)

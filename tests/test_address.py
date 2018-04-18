@@ -5,7 +5,7 @@ import urllib.parse
 from lxml import etree
 
 from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type
-from btctools.script import op_push, TX
+from btctools.script import push, TX, OP
 from ECDS.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from transformations import bytes_to_hex, int_to_str
 from btctools import bech32
@@ -79,7 +79,7 @@ class TestBech32(unittest.TestCase):
     def test_p2wsh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#examples"""
         pubkey = PublicKey.from_hex('0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798')
-        script = op_push(33) + pubkey.encode(compressed=True) + b'\xac'  # <OP_PUSH> <key> <OP_CHECKSIG>
+        script = push(pubkey.encode(compressed=True)) + OP.CHECKSIG.byte  # <key> <OP_CHECKSIG>
         address = script_to_address(script, 'P2WSH')
         self.assertEqual(address, 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
         self.assertEqual(address_type(address), TX.P2WSH)
