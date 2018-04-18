@@ -9,38 +9,11 @@ use this for anything serious because I am not a security expert.
 Examples
 --------
 
-RSA
+ECDSA
 
 .. code-block:: Python
 
-    >>> import RSA
-
-    >>> private, public = RSA.generate_keypair(512)
-
-    >>> txt = 'deadbeef'
-    >>> message = RSA.Message.from_hex(txt)
-    >>> message
-    b'\xde\xad\xbe\xef'
-
-
-    >>> message.encrypt(public)
-    >>> message
-    b'\x05\xe3q\x92\x1c=)\xaev\xe8\x8d\x8c\x9f\x8d\xde\x17\xdc\x95y\x1e\x90N\xf1A\x816\xb7|z\x83...'
-
-    >>> message.decrypt(private)
-    >>> message.hex() == txt
-    True
-
-    >>> message.encrypt(private)
-    >>> message.decrypt(public)
-    >>> message.hex() == txt
-    True
-
-ECDS
-
-.. code-block:: Python
-
-    from ECDS.secp256k1 import generate_keypair, Message
+    from ECDSA.secp256k1 import generate_keypair, Message
 
     >>> private, public = generate_keypair()
 
@@ -54,7 +27,24 @@ btctools
 
 .. code-block:: Python
 
-    >>> from btctools import generate_keypair, push, script_to_address
+    from btctools import Transaction
+
+    tx = Transaction.get('454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214')
+
+    >>> tx
+    Transaction(inputs=1, outputs=2)
+
+    tx.outputs
+
+    [Output(type=P2SH, value=0.0266 BTC),
+     Output(type=P2WSH, value=0.00468 BTC)]
+
+    >>> tx.verify()
+    True
+
+.. code-block:: Python
+
+    >>> from btctools import generate_keypair, push, script_to_address, TX
 
     >>> private, public = generate_keypair()
 
@@ -71,7 +61,7 @@ btctools
     '19dFXDxiD4KrUTNFfcgeekFpQmUC553GzW'
 
     # Simple <key> <OP_CHECKSIG> script
-    >>> script = push(public.encode(compressed=True)) + b'\xac'  # <OP_PUSH> <key> <OP_CHECKSIG>
+    >>> script = push(public.encode(compressed=True)) + OP.CHECKSIG.byte
     >>> script_to_address(script, 'P2WSH')
     'bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'
 
@@ -81,7 +71,7 @@ btctools
 
 .. code-block:: Python
 
-    >>> from ECDS.secp256k1 import CURVE, PrivateKey
+    >>> from ECDSA.secp256k1 import CURVE, PrivateKey
 
     >>> private = PrivateKey.random()
     >>> private.int()
@@ -108,6 +98,36 @@ vanitygen
     >>> private, public, address = vanity('Bob')  # Takes forever
     Found address starting with Bob in 1:17:55 after 80,111 tries
 
+
+
+
+RSA
+
+.. code-block:: Python
+
+
+    >>> import RSA
+
+    >>> private, public = RSA.generate_keypair(512)
+
+    >>> txt = 'deadbeef'
+    >>> message = RSA.Message.from_hex(txt)
+    >>> message
+    b'\xde\xad\xbe\xef'
+
+
+    >>> message.encrypt(public)
+    >>> message
+    b'\x05\xe3q\x92\x1c=)\xaev\xe8\x8d\x8c\x9f\x8d\xde\x17\xdc\x95y\x1e\x90N\xf1A\x816\xb7|z\x83...'
+
+    >>> message.decrypt(private)
+    >>> message.hex() == txt
+    True
+
+    >>> message.encrypt(private)
+    >>> message.decrypt(public)
+    >>> message.hex() == txt
+    True
 
 
 to run tests
