@@ -30,12 +30,13 @@ class PrivateKey(message.Message):
         return cls.from_int(key)
 
     @classmethod
-    def from_wif(cls, wif):
+    def from_wif(cls, wif: str) -> 'PrivateKey':
         from btctools import base58, sha256
+        from btctools.network import network
         bts = base58.decode(wif)
-        bt80, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
-        assert sha256(sha256(bt80 + key))[:4] == checksum, 'Invalid Checksum'
-        assert bt80 == b'\x80', 'Invalid Format'
+        network_byte, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
+        assert sha256(sha256(network_byte + key))[:4] == checksum, 'Invalid Checksum'
+        assert network_byte == network['wif'], 'Invalid Network byte'
         if key.endswith(b'\x01'):
             key = key[:-1]
             compressed = True  # TODO
@@ -43,14 +44,15 @@ class PrivateKey(message.Message):
             compressed = False  # TODO
         return cls(key)
 
-    def wif(self, compressed=False):
+    def wif(self, compressed=False) -> str:
         from btctools import base58, sha256
-        extended = b'\x80' + self.bytes() + (b'\x01' if compressed else b'')
+        from btctools.network import network
+        extended = network['wif'] + self.bytes() + (b'\x01' if compressed else b'')
         hashed = sha256(sha256(extended))
         checksum = hashed[:4]
         return base58.encode(extended + checksum)
 
-    def to_public(self):
+    def to_public(self) -> 'PublicKey':
         point = CURVE.G * self.int()
         return PublicKey(point)
 
@@ -83,7 +85,7 @@ class PublicKey:
         return f"PublicKey({self.x}, {self.y})"
 
     @classmethod
-    def decode(cls, key: bytes):
+    def decode(cls, key: bytes) -> 'PublicKey':
         if key.startswith(b'\x04'):        # uncompressed key
             assert len(key) == 65, 'An uncompressed public key must be 65 bytes long'
             x, y = bytes_to_int(key[1:33]), bytes_to_int(key[33:])
@@ -106,20 +108,20 @@ class PublicKey:
         return key.to_public()
 
     @classmethod
-    def from_hex(cls, hexstring: str):
+    def from_hex(cls, hexstring: str) -> 'PublicKey':
         return cls.decode(hex_to_bytes(hexstring))
 
     @property
-    def x(self):
+    def x(self) -> int:
         """X coordinate of the (X, Y) point"""
         return self.point.x
 
     @property
-    def y(self):
+    def y(self) -> int:
         """Y coordinate of the (X, Y) point"""
         return self.point.y
 
-    def encode(self, compressed=False):
+    def encode(self, compressed=False) -> bytes:
         if compressed:
             if self.y & 1:  # odd root
                 return b'\x03' + int_to_bytes(self.x).rjust(32, b'\x00')
@@ -127,10 +129,10 @@ class PublicKey:
                 return b'\x02' + int_to_bytes(self.x).rjust(32, b'\x00')
         return b'\x04' + int_to_bytes(self.x).rjust(32, b'\x00') + int_to_bytes(self.y).rjust(32, b'\x00')
 
-    def hex(self, compressed=False):
+    def hex(self, compressed=False) -> str:
         return bytes_to_hex(self.encode(compressed=compressed))
 
-    def to_address(self, addrtype: str):
+    def to_address(self, addrtype: str) -> str:
         from btctools.address import pubkey_to_address
         return pubkey_to_address(self, addrtype)
 

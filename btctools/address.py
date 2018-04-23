@@ -6,18 +6,17 @@ from typing import Union, Tuple
 from btctools import base58, bech32
 from btctools.script import push, witness_byte
 from btctools.opcodes import TX, OP
-from btctools.transaction import Input, Output, Transaction, ValidationError
+from btctools.network import network, networks
+from btctools.transaction import Output, Transaction, ValidationError
 from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
-from transformations import int_to_bytes, hex_to_bytes, hash160, sha256
-
-HRP = 'bc'
+from transformations import hex_to_bytes, hash160, sha256
 
 
-def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: int) -> str:
+def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) -> str:
     """https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses"""
     bts = pub_or_script.encode(compressed=False) if isinstance(pub_or_script, PublicKey) else pub_or_script
     hashed = hash160(bts)
-    payload = int_to_bytes(version_byte) + hashed
+    payload = version_byte + hashed
     checksum = sha256(sha256(payload))[:4]
     address = payload + checksum
     return base58.encode(address)
@@ -42,26 +41,26 @@ def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: int) ->
 def script_to_bech32(script: bytes, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = sha256(script)
-    return bech32.encode(HRP, witver, witprog)
+    return bech32.encode(network['hrp'], witver, witprog)
 
 
 def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = hash160(pub.encode(compressed=True))
-    return bech32.encode(HRP, witver, witprog)
+    return bech32.encode(network['hrp'], witver, witprog)
 
 
 key_to_addr_versions = {
-    'P2PKH': partial(legacy_address, version_byte=0x00),
+    'P2PKH': partial(legacy_address, version_byte=network['keyhash']),
     # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=False))), version_byte=0x05),
+    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=False))), version_byte=network['scripthash']),
     'P2WPKH': partial(pubkey_to_bech32, witver=0x00),
 }
 
 script_to_addr_versions = {
-    'P2SH': partial(legacy_address, version_byte=0x05),
+    'P2SH': partial(legacy_address, version_byte=network['scripthash']),
     # 'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=0x05),
+    'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network['scripthash']),
     'P2WSH': partial(script_to_bech32, witver=0x00),
 }
 
@@ -80,7 +79,7 @@ def script_to_address(script: bytes, version='P2SH') -> str:
 def address_to_script(addr: str) -> bytes:
     """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#segwit-address-format"""
     hrp, _ = bech32.bech32_decode(addr)
-    if hrp not in ('bc', 'tb'):
+    if hrp not in [net['hrp'] for net in networks.values()]:
         raise bech32.Bech32DecodeError('Invalid human-readable part')
     witver, witprog = bech32.decode(hrp, addr)
     if not (0 <= witver <= 16):
@@ -161,7 +160,7 @@ class Address:
             scripthash = address[1:-4]
             output.script = OP.HASH160.byte + push(scripthash) + OP.EQUAL.byte
         elif addr_type in (TX.P2WPKH, TX.P2WSH):
-            witness_version, witness_program = bech32.decode(HRP, self.address)
+            witness_version, witness_program = bech32.decode(network['hrp'], self.address)
             output.script = OP(witness_byte(witness_version)).byte + push(bytes(witness_program))
         else:
             raise ValidationError(f"Cannot create output of type {addr_type}")
@@ -175,18 +174,18 @@ def address_type(addr):
         except base58.Base58DecodeError as e:
             raise InvalidAddress(f"{addr} : {e}") from None
         payload, checksum = address[:-4], address[-4:]
-        version_byte, digest = payload[0], payload[1:].rjust(20, b'\x00')
+        version_byte, digest = payload[0:1], payload[1:].rjust(20, b'\x00')
         if len(digest) != 20:
             raise InvalidAddress(f"{addr} : Bad Payload") from None
         if sha256(sha256(payload))[:4] != checksum:
             raise InvalidAddress(f"{addr} : Invalid checksum") from None
         try:
-            return {0x00: TX.P2PKH, 0x05: TX.P2SH}[version_byte]
+            return {network['keyhash']: TX.P2PKH, network['scripthash']: TX.P2SH}[version_byte]
         except KeyError:
             raise InvalidAddress(f"{addr} : Invalid version byte") from None
-    elif addr.startswith(HRP):
+    elif addr.startswith(network['hrp']):
         try:
-            witness_version, witness_program = bech32.decode(HRP, addr)
+            witness_version, witness_program = bech32.decode(network['hrp'], addr)
         except bech32.Bech32DecodeError as e:
             raise InvalidAddress(f"{addr} : {e}") from None
 
