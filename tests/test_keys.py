@@ -67,9 +67,9 @@ class TestSignature(unittest.TestCase):
         fake_message = Message.from_int(message.int() + 1)
 
         self.assertTrue(message.verify(sig, public))
-        self.assertTrue(not message.verify(sig, fake_public))
-        self.assertTrue(not message.verify(fake_sig, public))
-        self.assertTrue(not fake_message.verify(sig, public))
+        self.assertFalse(message.verify(sig, fake_public))
+        self.assertFalse(message.verify(fake_sig, public))
+        self.assertFalse(fake_message.verify(sig, public))
 
     def test_encoding(self):
         raw_sig = hex_to_bytes('304402206878b5690514437a2342405029426cc2b25b4a03fc396fef845d656cf62bad2c022018610a8d37e3384245176ab49ddbdbe8da4133f661bf5ea7ad4e3d2b912d856f')
@@ -91,4 +91,9 @@ class TestSignature(unittest.TestCase):
 
         sig = Signature(secrets.randbelow(CURVE.N), secrets.randbelow(CURVE.N))
         self.assertEqual(sig, Signature.decode(sig.encode()))
+
+        # Test padding
+        sig = Signature(secrets.randbelow(10**8), secrets.randbelow(10**8))
+        self.assertEqual(sig, Signature.decode(sig.encode()))
+
 
