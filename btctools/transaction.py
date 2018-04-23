@@ -7,30 +7,11 @@ from message import is_signature
 from btctools.opcodes import SIGHASH, TX, OP
 from btctools.network import network
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
+from btctools.error import ValidationError, SerializationError, SigningError, UpstreamError, HTTPError
 from ECDSA.secp256k1 import CURVE, is_pubkey
 
 
 concat = b''.join
-
-
-class TransactionError(Exception):
-    def __init__(self, message, tx=None, data=None, txhash=None):
-        self.message = message
-        self.tx = tx
-        self.data = data
-        self.txhash = txhash
-
-
-class SerializationError(TransactionError):
-    pass
-
-
-class ValidationError(TransactionError):
-    pass
-
-
-class SigningError(TransactionError):
-    pass
 
 
 class Input:
@@ -476,19 +457,23 @@ class Transaction:
     def get(cls, txhash):
         """Construct a transaction from it's tx id by getting the raw data from blockchain.info"""
         import urllib.request
+        from urllib.error import HTTPError
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
 
         url = network['rawtx_url'] + f"{txhash}?format=hex"
         req = urllib.request.Request(url)
         sleep(0.1)
-        with urllib.request.urlopen(req) as resp:
-            assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
-            try:
-                return cls.from_hex(resp.read().decode())
-            except SerializationError as e:
-                e.txhash = txhash
-                raise e
+        try:
+            with urllib.request.urlopen(req) as resp:
+                try:
+                    return cls.from_hex(resp.read().decode())
+                except SerializationError as e:
+                    e.txhash = txhash
+                    raise e
+        except HTTPError as e:
+            resp = e.read().decode()
+            raise UpstreamError(resp)
 
     def sighash(self, i, hashcode=SIGHASH.ALL):
         inp = self.inputs[i]
@@ -588,8 +573,6 @@ class Transaction:
     def broadcast(self):
         import urllib.request
         import urllib.parse
-        from urllib.error import HTTPError
-        import json
 
         url = network['broadcast_url']
         payload = {'tx': self.hex()}
@@ -601,4 +584,4 @@ class Transaction:
                 resp = response.read()
         except HTTPError as e:
             resp = e.read()
-        return json.dumps(resp.decode())
+        return resp.decode()

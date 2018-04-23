@@ -4,10 +4,7 @@ from ECDSA.secp256k1 import PublicKey
 from message import Signature
 from transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hex_to_bytes, hash160, sha256
 from btctools.opcodes import OP, SIGHASH, TX
-
-
-class ScriptValidationError(Exception):
-    pass
+from btctools.error import ScriptValidationError
 
 
 def op_push(i: int) -> bytes:

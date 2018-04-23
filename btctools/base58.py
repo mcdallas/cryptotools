@@ -1,11 +1,8 @@
 from transformations import bytes_to_int, int_to_bytes
+from btctools.error import Base58DecodeError
 
 ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 BASE = len(ALPHABET)
-
-
-class Base58DecodeError(Exception):
-    pass
 
 
 def encode(bts: bytes) -> str:
@@ -27,6 +24,6 @@ def decode(b58: str) -> bytes:
         try:
             partial_sum += ALPHABET.index(digit) * BASE**exponent
         except ValueError:
-            raise DecodingError('Bad Byte') from None
+            raise Base58DecodeError('Bad Byte') from None
         exponent += 1
     return int_to_bytes(partial_sum)

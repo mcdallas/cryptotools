@@ -21,12 +21,9 @@
 """Reference implementation for Bech32 and segwit addresses - tweaked to provide descriptive errors"""
 
 from typing import Tuple, List
+from btctools.error import Bech32DecodeError
 
 Bytes = List[int]
-
-
-class Bech32DecodeError(Exception):
-    pass
 
 
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"

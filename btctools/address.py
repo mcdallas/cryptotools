@@ -7,7 +7,8 @@ from btctools import base58, bech32
 from btctools.script import push, witness_byte
 from btctools.opcodes import TX, OP
 from btctools.network import network, networks
-from btctools.transaction import Output, Transaction, ValidationError
+from btctools.transaction import Output, Transaction
+from btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
 from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
 from transformations import hex_to_bytes, hash160, sha256
 
@@ -80,17 +81,13 @@ def address_to_script(addr: str) -> bytes:
     """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#segwit-address-format"""
     hrp, _ = bech32.bech32_decode(addr)
     if hrp not in [net['hrp'] for net in networks.values()]:
-        raise bech32.Bech32DecodeError('Invalid human-readable part')
+        raise Bech32DecodeError('Invalid human-readable part')
     witver, witprog = bech32.decode(hrp, addr)
     if not (0 <= witver <= 16):
-        raise bech32.Bech32DecodeError('Invalid witness version')
+        raise Bech32DecodeError('Invalid witness version')
 
     script = witness_byte(witver) + push(bytes(witprog))
     return script
-
-
-class InvalidAddress(Exception):
-    pass
 
 
 class Address:
@@ -102,7 +99,6 @@ class Address:
     def utxos(self):
         if self._outputs is None:
             import urllib.request
-            from urllib.error import HTTPError
             import json
             url = network['utxo_url'] + self.address
 
@@ -110,12 +106,13 @@ class Address:
             outputs = []
             try:
                 with urllib.request.urlopen(req) as resp:
-                    assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
                     data = json.loads(resp.read().decode())
             except HTTPError as e:
                 resp = e.read().decode()
                 if resp == 'No free outputs to spend':
                     self._outputs = []
+                else:
+                    raise UpstreamError(resp)
             else:
                 for item in data['unspent_outputs']:
                     out = Output(value=item['value'], script=hex_to_bytes(item['script']))
@@ -178,7 +175,7 @@ def address_type(addr):
     if addr.startswith(('1', '3', 'm', 'n')):
         try:
             address = base58.decode(addr).rjust(25, b'\x00')
-        except base58.Base58DecodeError as e:
+        except Base58DecodeError as e:
             raise InvalidAddress(f"{addr} : {e}") from None
         payload, checksum = address[:-4], address[-4:]
         version_byte, digest = payload[0:1], payload[1:].rjust(20, b'\x00')
@@ -193,7 +190,7 @@ def address_type(addr):
     elif addr.startswith(network['hrp']):
         try:
             witness_version, witness_program = bech32.decode(network['hrp'], addr)
-        except bech32.Bech32DecodeError as e:
+        except Bech32DecodeError as e:
             raise InvalidAddress(f"{addr} : {e}") from None
 
         if not witness_version == 0x00:
