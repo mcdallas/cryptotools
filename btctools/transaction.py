@@ -45,7 +45,7 @@ class Input:
         self._referenced_output = None
         self.witness = witness
         self._parent = None
-        self.tx_index = None
+        self.tx_index = None  # index of this input in it's parent tx
         self.parent_id = None
 
     def ref(self):
@@ -238,7 +238,7 @@ class Output:
         self.script = script
         self.parent_id = None
         self._parent = None
-        self.tx_index = None
+        self.tx_index = None  # index of this output in it's parent tx
 
     @property
     def value(self):
@@ -290,9 +290,16 @@ class Output:
 
     def spend(self):
         """Creates an empty input that spends this output"""
-        if not isinstance(self.parent, Transaction) or self.tx_index is None:
-            raise AttributeError('This output has no reference to its parent tx. Set the attribute first or use the Output.get constructor')
-        return Input(output=self.parent.txid()[::-1], index=self.tx_index, script=b'')
+        if self.tx_index is not None:
+            if isinstance(self.parent, Transaction):
+                inp = Input(output=self.parent.txid()[::-1], index=self.tx_index, script=b'')
+                inp._referenced_output = self
+                return inp
+            elif self.parent_id is not None:
+                inp = Input(output=self.parent_id, index=self.tx_index, script=b'')
+                inp._referenced_output = self
+                return inp
+        raise AttributeError('This output has no reference to its parent tx. Set the attribute first or use the Output.get constructor')
 
     @staticmethod
     def get(txid, i):

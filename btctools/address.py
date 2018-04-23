@@ -5,9 +5,9 @@ from typing import Union, Tuple
 
 from btctools import base58, bech32
 from btctools.script import push, witness_byte
-from btctools.opcodes import TX
-from btctools.transaction import Input, Output, Transaction
-from ECDSA.secp256k1 import generate_keypair, PublicKey
+from btctools.opcodes import TX, OP
+from btctools.transaction import Input, Output, Transaction, ValidationError
+from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
 from transformations import int_to_bytes, hex_to_bytes, hash160, sha256
 
 HRP = 'bc'
@@ -113,8 +113,8 @@ class Address:
                 data = json.loads(resp.read().decode())
             for item in data['unspent_outputs']:
                 out = Output(value=item['value'], script=hex_to_bytes(item['script']))
-                out.parent_id = item['tx_hash_big_endian']
-                out.index = item['tx_output_n']
+                out.parent_id = hex_to_bytes(item['tx_hash_big_endian'])
+                out.tx_index = item['tx_output_n']
                 outputs.append(out)
             self._outputs = outputs
         return self._outputs
@@ -125,8 +125,47 @@ class Address:
     def balance(self):
         return sum((out.value for out in self.utxos))/10**8
 
-    def send(self, to: dict) -> Transaction:
-        pass
+    def __repr__(self):
+        return f"Address({self.address}, type={self.type().value}, balance={self.balance()} BTC)" \
+            if self._outputs else f"Address({self.address}, type={self.type().value})"
+
+    def send(self, to: dict, fee: float, private: PrivateKey) -> Transaction:
+        balance = self.balance()
+        sum_send = sum(to.values())
+        if balance < sum_send + fee:
+            raise ValidationError("Insufficient balance")
+        elif balance > sum_send + fee:
+            raise ValidationError("You are trying to send {sum_send} BTC which is less than this address' current balance of {balance}. You must provide a change address or explicitly add the difference as a fee")
+        inputs = [out.spend() for out in self.utxos]
+        outputs = [Address(addr).receive(val) for addr, val in to.items()]
+        tx = Transaction(inputs=inputs, outputs=outputs)
+        for idx in range(len(tx.inputs)):
+            tx.inputs[idx].tx_index = idx
+            tx.inputs[idx]._parent = tx
+        for inp in tx.inputs:
+            inp.sign(private)
+        return tx
+
+    def receive(self, value):
+        """Creates an output that sends to this address"""
+        addr_type = self.type()
+        value = value * 10**8
+        assert isinstance(value, int) or value.is_integer()
+        output = Output(value=int(value), script=b'')
+        if addr_type == TX.P2PKH:
+            address = base58.decode(self.address).rjust(25, b'\x00')
+            keyhash = address[1:-4]
+            output.script = OP.DUP.byte + OP.HASH160.byte + push(keyhash) + OP.EQUALVERIFY.byte + OP.CHECKSIG.byte
+        elif addr_type == TX.P2SH:
+            address = base58.decode(self.address).rjust(25, b'\x00')
+            scripthash = address[1:-4]
+            output.script = OP.HASH160.byte + push(scripthash) + OP.EQUAL.byte
+        elif addr_type in (TX.P2WPKH, TX.P2WSH):
+            witness_version, witness_program = bech32.decode(HRP, self.address)
+            output.script = OP(witness_byte(witness_version)).byte + push(bytes(witness_program))
+        else:
+            raise ValidationError(f"Cannot create output of type {addr_type}")
+        return output
 
 
 def address_type(addr):
@@ -145,7 +184,7 @@ def address_type(addr):
             return {0x00: TX.P2PKH, 0x05: TX.P2SH}[version_byte]
         except KeyError:
             raise InvalidAddress(f"{addr} : Invalid version byte") from None
-    elif addr.startswith('bc1'):
+    elif addr.startswith(HRP):
         try:
             witness_version, witness_program = bech32.decode(HRP, addr)
         except bech32.Bech32DecodeError as e:
