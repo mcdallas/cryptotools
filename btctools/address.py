@@ -96,26 +96,33 @@ class InvalidAddress(Exception):
 class Address:
     def __init__(self, address):
         self.address = address
-        self._outputs = []
+        self._outputs = None
 
     @property
     def utxos(self):
-        if not self._outputs:
+        if self._outputs is None:
             import urllib.request
+            from urllib.error import HTTPError
             import json
-            url = 'https://blockchain.info/unspent?active=' + self.address
+            url = network['utxo_url'] + self.address
 
             req = urllib.request.Request(url)
             outputs = []
-            with urllib.request.urlopen(req) as resp:
-                assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
-                data = json.loads(resp.read().decode())
-            for item in data['unspent_outputs']:
-                out = Output(value=item['value'], script=hex_to_bytes(item['script']))
-                out.parent_id = hex_to_bytes(item['tx_hash_big_endian'])
-                out.tx_index = item['tx_output_n']
-                outputs.append(out)
-            self._outputs = outputs
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    assert 200 <= resp.status < 300, f"{resp.status}: {resp.reason}"
+                    data = json.loads(resp.read().decode())
+            except HTTPError as e:
+                resp = e.read().decode()
+                if resp == 'No free outputs to spend':
+                    self._outputs = []
+            else:
+                for item in data['unspent_outputs']:
+                    out = Output(value=item['value'], script=hex_to_bytes(item['script']))
+                    out.parent_id = hex_to_bytes(item['tx_hash_big_endian'])
+                    out.tx_index = item['tx_output_n']
+                    outputs.append(out)
+                self._outputs = outputs
         return self._outputs
 
     def type(self):
@@ -168,7 +175,7 @@ class Address:
 
 
 def address_type(addr):
-    if addr.startswith(('1', '3')):
+    if addr.startswith(('1', '3', 'm', 'n')):
         try:
             address = base58.decode(addr).rjust(25, b'\x00')
         except base58.Base58DecodeError as e:

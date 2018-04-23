@@ -15,6 +15,9 @@ main = {
     'keyhash': b'\x00',
     'scripthash': b'\x05',
     'wif': b'\x80',
+    'utxo_url': 'https://blockchain.info/unspent?active=',
+    'rawtx_url': 'https://blockchain.info/rawtx/',
+    'broadcast_url': 'https://blockchain.info/pushtx'
 
 }
 
@@ -22,7 +25,10 @@ test = {
     'hrp': 'tb',
     'keyhash': b'\x6f',
     'scripthash': b'\xc4',
-    'wif': b'\xef'
+    'wif': b'\xef',
+    'utxo_url': 'https://testnet.blockchain.info/unspent?active=',
+    'rawtx_url': 'https://testnet.blockchain.info/rawtx/',
+    'broadcast_url': 'https://testnet.blockchain.info/pushtx'
 }
 
 networks = {

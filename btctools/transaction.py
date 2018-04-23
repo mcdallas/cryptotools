@@ -5,6 +5,7 @@ from time import sleep
 from transformations import bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from message import is_signature
 from btctools.opcodes import SIGHASH, TX, OP
+from btctools.network import network
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
 from ECDSA.secp256k1 import CURVE, is_pubkey
 
@@ -477,7 +478,8 @@ class Transaction:
         import urllib.request
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
-        url = f"https://blockchain.info/rawtx/{txhash}?format=hex"
+
+        url = network['rawtx_url'] + f"{txhash}?format=hex"
         req = urllib.request.Request(url)
         sleep(0.1)
         with urllib.request.urlopen(req) as resp:
@@ -589,7 +591,7 @@ class Transaction:
         from urllib.error import HTTPError
         import json
 
-        url = 'https://blockchain.info/pushtx'
+        url = network['broadcast_url']
         payload = {'tx': self.hex()}
         data = urllib.parse.urlencode(payload).encode('ascii')
         req = urllib.request.Request(url, data)
