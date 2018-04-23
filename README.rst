@@ -42,6 +42,33 @@ btctools
     >>> tx.verify()
     True
 
+
+.. code-block:: Python
+
+    import os
+    os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
+
+    from btctools import PrivateKey, Address
+
+    private = PrivateKey.from_hex('mysupersecretkey')
+    address = Address('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66')
+
+    >>> address.balance()
+    0.55
+
+    send_to = {'n4SbPWR6EmQMsWaQVYYFXiJgjweGKE4XnQ': 0.1, 'n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66': 0.4}
+
+    tx = address.send(to=send_to, fee=0.05, private=private)
+    >>> tx
+    Transaction(inputs=1, outputs=2)
+
+    >>> tx.inputs[0].is_signed()
+    True
+
+    >>> tx.broadcast()
+    'Transaction Submitted'
+
+
 .. code-block:: Python
 
     >>> from btctools import generate_keypair, push, script_to_address, TX

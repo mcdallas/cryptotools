@@ -126,6 +126,7 @@ class Address:
         return address_type(self.address)
 
     def balance(self):
+        self._outputs = None  # Force refresh
         return sum((out.value for out in self.utxos))/10**8
 
     def __repr__(self):
@@ -138,7 +139,7 @@ class Address:
         if balance < sum_send + fee:
             raise ValidationError("Insufficient balance")
         elif balance > sum_send + fee:
-            raise ValidationError("You are trying to send {sum_send} BTC which is less than this address' current balance of {balance}. You must provide a change address or explicitly add the difference as a fee")
+            raise ValidationError(f"You are trying to send {sum_send} BTC which is less than this address' current balance of {balance}. You must provide a change address or explicitly add the difference as a fee")
         inputs = [out.spend() for out in self.utxos]
         outputs = [Address(addr).receive(val) for addr, val in to.items()]
         tx = Transaction(inputs=inputs, outputs=outputs)
@@ -169,6 +170,14 @@ class Address:
         else:
             raise ValidationError(f"Cannot create output of type {addr_type}")
         return output
+
+
+def send(address, to, fee, private):
+    addr = Address(address)
+    prv_to_addr = private.to_public().to_address(addr.type().value)
+    assert addr == prv_to_addr, 'This private key does not correspond to the given address'
+    tx = addr.send(to=to, fee=fee, private=private)
+    assert tx.verify(), 'Something went wrong, could not verify signed transaction'
 
 
 def address_type(addr):
