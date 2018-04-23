@@ -2,7 +2,7 @@ from copy import deepcopy, copy
 from collections import deque
 from time import sleep
 
-from transformations import int_to_bytes, bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
+from transformations import bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from message import is_signature
 from btctools.opcodes import SIGHASH, TX, OP
 from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
@@ -292,7 +292,7 @@ class Output:
         """Creates an empty input that spends this output"""
         if self.tx_index is not None:
             if isinstance(self.parent, Transaction):
-                inp = Input(output=self.parent.txid()[::-1], index=self.tx_index, script=b'')
+                inp = Input(output=self.parent.txid(), index=self.tx_index, script=b'')
                 inp._referenced_output = self
                 return inp
             elif self.parent_id is not None:
@@ -583,3 +583,20 @@ class Transaction:
 
             return all(results)
 
+    def broadcast(self):
+        import urllib.request
+        import urllib.parse
+        from urllib.error import HTTPError
+        import json
+
+        url = 'https://blockchain.info/pushtx'
+        payload = {'tx': self.hex()}
+        data = urllib.parse.urlencode(payload).encode('ascii')
+        req = urllib.request.Request(url, data)
+
+        try:
+            with urllib.request.urlopen(req) as response:
+                resp = response.read()
+        except HTTPError as e:
+            resp = e.read()
+        return json.dumps(resp.decode())
