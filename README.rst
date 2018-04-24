@@ -86,7 +86,7 @@ btctools
 
 .. code-block:: Python
 
-    >>> from btctools import generate_keypair, push, script_to_address, TX
+    >>> from btctools import generate_keypair, push, script_to_address, OP
 
     >>> private, public = generate_keypair()
 
