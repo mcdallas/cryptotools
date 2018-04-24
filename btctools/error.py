@@ -39,4 +39,3 @@ class Bech32DecodeError(Exception):
 
 class InvalidAddress(Exception):
     pass
-

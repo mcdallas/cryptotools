@@ -52,14 +52,14 @@ def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
 
 
 key_to_addr_versions = {
-    'P2PKH': partial(legacy_address, version_byte=network('keyhash')),
+    'P2PKH': lambda pub: legacy_address(pub, version_byte=network('keyhash')),
     # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
     'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=False))), version_byte=network('scripthash')),
     'P2WPKH': partial(pubkey_to_bech32, witver=0x00),
 }
 
 script_to_addr_versions = {
-    'P2SH': partial(legacy_address, version_byte=network('scripthash')),
+    'P2SH': lambda script: legacy_address(script, version_byte=network('scripthash')),
     # 'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
     'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network('scripthash')),
     'P2WSH': partial(script_to_bech32, witver=0x00),
@@ -141,7 +141,9 @@ class Address:
         if balance < sum_send + fee:
             raise ValidationError("Insufficient balance")
         elif balance > sum_send + fee:
-            raise ValidationError(f"You are trying to send {sum_send/10**8} BTC which is less than this address' current balance of {balance/10**8}. You must provide a change address or explicitly add the difference as a fee")
+            raise ValidationError(f"You are trying to send {sum_send/10**8} BTC which is "
+                                  f"less than this address' current balance of {balance/10**8}."
+                                  f" You must provide a change address or explicitly add the difference as a fee")
         inputs = [out.spend() for out in self.utxos]
         outputs = [Address(addr)._receive(val) for addr, val in to.items()]
         tx = Transaction(inputs=inputs, outputs=outputs)
