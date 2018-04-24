@@ -461,7 +461,7 @@ class Transaction:
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
 
-        url = network['rawtx_url'] + f"{txhash}?format=hex"
+        url = network['rawtx_url'].format(txid=txhash)
         req = urllib.request.Request(url)
         sleep(0.1)
         try:

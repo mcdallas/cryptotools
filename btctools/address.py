@@ -10,7 +10,7 @@ from btctools.network import network, networks
 from btctools.transaction import Output, Transaction
 from btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
 from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
-from transformations import hex_to_bytes, bytes_to_hex, hash160, sha256, btc_to_satoshi
+from transformations import hex_to_bytes, bytes_to_hex, bytes_to_int, hash160, sha256, btc_to_satoshi
 
 
 def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) -> str:
@@ -100,7 +100,7 @@ class Address:
         if self._outputs is None:
             import urllib.request
             import json
-            url = network['utxo_url'] + self.address
+            url = network['utxo_url'].format(address=self.address)
 
             req = urllib.request.Request(url)
             outputs = []
@@ -166,7 +166,7 @@ class Address:
             output.script = OP.HASH160.byte + push(scripthash) + OP.EQUAL.byte
         elif addr_type in (TX.P2WPKH, TX.P2WSH):
             witness_version, witness_program = bech32.decode(network['hrp'], self.address)
-            output.script = OP(witness_byte(witness_version)).byte + push(bytes(witness_program))
+            output.script = OP(bytes_to_int(witness_byte(witness_version))).byte + push(bytes(witness_program))
         else:
             raise ValidationError(f"Cannot create output of type {addr_type}")
         return output
