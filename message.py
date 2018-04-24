@@ -113,7 +113,7 @@ class Signature:
         return b'\x30' + len_sig + b'\x02' + len_r + r + b'\x02' + len_s + s
 
     def verify_hash(self, hash, pubkey):
-        from btctools import N, mulinv, CURVE
+        from ECDSA.secp256k1 import N, mulinv, CURVE
         if not (1 <= self.r < N and 1 <= self.s < N):
             return False
 
