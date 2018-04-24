@@ -15,6 +15,7 @@ __all__ = [
     'pubkey_to_address',
     'script_to_address',
     'Address',
+    'send',
     'op_push',
     'push',
     'address_to_script',

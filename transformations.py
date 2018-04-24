@@ -54,3 +54,9 @@ def str_to_hex(s):
 
 def hex_to_str(h):
     return bytes_to_str(hex_to_bytes(h))
+
+
+def btc_to_satoshi(value: float):
+    value = float(value * 10**8)
+    assert value.is_integer(), 'The smallest denomination is 1 satoshi or 10^-8 BTC'
+    return int(value)

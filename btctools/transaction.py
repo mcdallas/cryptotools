@@ -584,4 +584,4 @@ class Transaction:
                 resp = response.read()
         except HTTPError as e:
             resp = e.read()
-        return resp.decode()
+        return resp.decode().strip('\n')

@@ -10,7 +10,7 @@ from btctools.network import network, networks
 from btctools.transaction import Output, Transaction
 from btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
 from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
-from transformations import hex_to_bytes, hash160, sha256
+from transformations import hex_to_bytes, bytes_to_hex, hash160, sha256, btc_to_satoshi
 
 
 def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) -> str:
@@ -134,14 +134,16 @@ class Address:
             if self._outputs else f"Address({self.address}, type={self.type().value})"
 
     def send(self, to: dict, fee: float, private: PrivateKey) -> Transaction:
-        balance = self.balance()
+        balance = btc_to_satoshi(self.balance())
+        fee = btc_to_satoshi(fee)
+        to = {key: btc_to_satoshi(val) for key, val in to.items()}
         sum_send = sum(to.values())
         if balance < sum_send + fee:
             raise ValidationError("Insufficient balance")
         elif balance > sum_send + fee:
-            raise ValidationError(f"You are trying to send {sum_send} BTC which is less than this address' current balance of {balance}. You must provide a change address or explicitly add the difference as a fee")
+            raise ValidationError(f"You are trying to send {sum_send/10**8} BTC which is less than this address' current balance of {balance/10**8}. You must provide a change address or explicitly add the difference as a fee")
         inputs = [out.spend() for out in self.utxos]
-        outputs = [Address(addr).receive(val) for addr, val in to.items()]
+        outputs = [Address(addr)._receive(val) for addr, val in to.items()]
         tx = Transaction(inputs=inputs, outputs=outputs)
         for idx in range(len(tx.inputs)):
             tx.inputs[idx].tx_index = idx
@@ -150,12 +152,10 @@ class Address:
             inp.sign(private)
         return tx
 
-    def receive(self, value):
+    def _receive(self, value: int):
         """Creates an output that sends to this address"""
         addr_type = self.type()
-        value = value * 10**8
-        assert isinstance(value, int) or value.is_integer()
-        output = Output(value=int(value), script=b'')
+        output = Output(value=value, script=b'')
         if addr_type == TX.P2PKH:
             address = base58.decode(self.address).rjust(25, b'\x00')
             keyhash = address[1:-4]
@@ -175,9 +175,13 @@ class Address:
 def send(address, to, fee, private):
     addr = Address(address)
     prv_to_addr = private.to_public().to_address(addr.type().value)
-    assert addr == prv_to_addr, 'This private key does not correspond to the given address'
+    assert address == prv_to_addr, 'This private key does not correspond to the given address'
     tx = addr.send(to=to, fee=fee, private=private)
     assert tx.verify(), 'Something went wrong, could not verify signed transaction'
+    result = tx.broadcast()
+    if result == 'Transaction Submitted':
+        return bytes_to_hex(tx.txid()[::-1])
+    raise UpstreamError(result)
 
 
 def address_type(addr):
