@@ -172,10 +172,10 @@ class Address:
         return output
 
 
-def send(address, to, fee, private):
-    addr = Address(address)
+def send(source, to, fee, private):
+    addr = Address(source)
     prv_to_addr = private.to_public().to_address(addr.type().value)
-    assert address == prv_to_addr, 'This private key does not correspond to the given address'
+    assert source == prv_to_addr, 'This private key does not correspond to the given address'
     tx = addr.send(to=to, fee=fee, private=private)
     assert tx.verify(), 'Something went wrong, could not verify signed transaction'
     result = tx.broadcast()
