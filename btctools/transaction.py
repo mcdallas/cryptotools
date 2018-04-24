@@ -461,7 +461,7 @@ class Transaction:
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
 
-        url = network['rawtx_url'].format(txid=txhash)
+        url = network('rawtx_url').format(txid=txhash)
         req = urllib.request.Request(url)
         sleep(0.1)
         try:
@@ -574,7 +574,7 @@ class Transaction:
         import urllib.request
         import urllib.parse
 
-        url = network['broadcast_url']
+        url = network('broadcast_url')
         payload = {'tx': self.hex()}
         data = urllib.parse.urlencode(payload).encode('ascii')
         req = urllib.request.Request(url, data)

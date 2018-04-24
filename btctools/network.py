@@ -36,4 +36,7 @@ networks = {
     NETWORK.TEST: test
 }
 
-network = networks[current_network]
+
+def network(attr):
+    net = networks[current_network]
+    return net[attr]

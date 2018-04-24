@@ -36,7 +36,7 @@ class PrivateKey(message.Message):
         bts = base58.decode(wif)
         network_byte, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
         assert sha256(sha256(network_byte + key))[:4] == checksum, 'Invalid Checksum'
-        assert network_byte == network['wif'], 'Invalid Network byte'
+        assert network_byte == network('wif'), 'Invalid Network byte'
         if key.endswith(b'\x01'):
             key = key[:-1]
             compressed = True  # TODO
@@ -47,7 +47,7 @@ class PrivateKey(message.Message):
     def wif(self, compressed=False) -> str:
         from btctools import base58, sha256
         from btctools.network import network
-        extended = network['wif'] + self.bytes() + (b'\x01' if compressed else b'')
+        extended = network('wif') + self.bytes() + (b'\x01' if compressed else b'')
         hashed = sha256(sha256(extended))
         checksum = hashed[:4]
         return base58.encode(extended + checksum)

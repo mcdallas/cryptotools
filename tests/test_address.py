@@ -4,7 +4,7 @@ import urllib.request
 import urllib.parse
 from lxml import etree
 
-from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type
+from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, Address
 from btctools.script import push, TX, OP
 from ECDSA.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from transformations import bytes_to_hex, int_to_str
@@ -53,6 +53,15 @@ class TestLegacyAddress(unittest.TestCase):
 
         self.assertEqual(script_to_address(script, 'P2SH'), address)
         self.assertEqual(address_type(address), TX.P2SH)
+
+    def test_balance(self):
+        # if satoshi moves his coins this test will fail
+        addr = Address('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
+        self.assertEqual(addr.balance(), 66.65271233)
+
+    def test_address_type(self):
+        self.assertEqual(address_type('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'), TX.P2PKH)
+        self.assertEqual(address_type('34eBzenHJEdk5PK9ojuuBZvCRtNhvvysYZ'), TX.P2SH)
 
 
 class TestBech32(unittest.TestCase):
@@ -151,3 +160,23 @@ class TestBech32(unittest.TestCase):
             with self.assertRaises(bech32.Bech32DecodeError):
                 address_to_script(addr)
 
+    def test_address_type(self):
+        self.assertEqual(address_type('bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'), TX.P2WPKH)
+        self.assertEqual(address_type('bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'), TX.P2WSH)
+
+
+class TestNet(unittest.TestCase):
+
+    def setUp(self):
+        import btctools.network
+        btctools.network.current_network = btctools.network.NETWORK.TEST
+
+    def tearDown(self):
+        import btctools.network
+        btctools.network.current_network = btctools.network.NETWORK.MAIN
+
+    def test_address_type(self):
+        self.assertEqual(address_type('mgxVT9fzHwYDsgEGJSZekKgYbAyrBkqdpi'), TX.P2PKH)
+        self.assertEqual(address_type('2MzAQDXGpmJyS6ybm2q57dbe8j2oxmvRDkc'), TX.P2SH)
+        self.assertEqual(address_type('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66'), TX.P2PKH)
+        self.assertEqual(address_type('tb1q7w5dhw4hl5yvxvl3yvv2xxvh7jwm28p9kpelcp'), TX.P2WPKH)
