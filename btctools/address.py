@@ -54,7 +54,7 @@ def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
 key_to_addr_versions = {
     'P2PKH': lambda pub: legacy_address(pub, version_byte=network('keyhash')),
     # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=False))), version_byte=network('scripthash')),
+    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=True))), version_byte=network('scripthash')),
     'P2WPKH': partial(pubkey_to_bech32, witver=0x00),
 }
 
