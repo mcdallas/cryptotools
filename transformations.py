@@ -54,3 +54,19 @@ def str_to_hex(s):
 
 def hex_to_str(h):
     return bytes_to_str(hex_to_bytes(h))
+
+
+def int_to_bin(i):
+    return format(i, 'b')
+
+
+def bin_to_int(b):
+    return int(b, 2)
+
+
+def bin_to_bytes(b):
+    return int(b, 2).to_bytes(max((len(b) + 7) // 8, 1), byteorder='big')
+
+
+def bytes_to_bin(b):
+    return ''.join((int_to_bin(i).zfill(8) for i in b))
