@@ -15,8 +15,8 @@ main = {
     'keyhash': b'\x00',
     'scripthash': b'\x05',
     'wif': b'\x80',
-    'utxo_url': 'https://blockchain.info/unspent?active=',
-    'rawtx_url': 'https://blockchain.info/rawtx/',
+    'utxo_url': 'https://blockchain.info/unspent?active={address}',
+    'rawtx_url': 'https://blockchain.info/rawtx/{txid}?format=hex',
     'broadcast_url': 'https://blockchain.info/pushtx'
 
 }
@@ -26,8 +26,8 @@ test = {
     'keyhash': b'\x6f',
     'scripthash': b'\xc4',
     'wif': b'\xef',
-    'utxo_url': 'https://testnet.blockchain.info/unspent?active=',
-    'rawtx_url': 'https://testnet.blockchain.info/rawtx/',
+    'utxo_url': 'https://testnet.blockchain.info/unspent?active={address}',
+    'rawtx_url': 'https://testnet.blockchain.info/rawtx/{txid}?format=hex',
     'broadcast_url': 'https://testnet.blockchain.info/pushtx'
 }
 
@@ -36,4 +36,7 @@ networks = {
     NETWORK.TEST: test
 }
 
-network = networks[current_network]
+
+def network(attr):
+    net = networks[current_network]
+    return net[attr]

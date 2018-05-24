@@ -42,6 +42,18 @@ btctools
     >>> tx.verify()
     True
 
+.. code-block:: Python
+
+    import os
+    os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
+
+    from btctools import PrivateKey, send
+
+    key = PrivateKey.from_hex('mysupersecretkey')
+
+    >>> send(source='n4SbPWR6EmQMsWaQVYYFXiJgjweGKE4XnQ', to={'n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66': 0.46}, fee=0.01, private=key)
+    '907b92969cb3a16ddb45591bf2530f177b7f10cef4e62c331596a84f66c3b8c3'  # txid
+
 
 .. code-block:: Python
 
@@ -65,13 +77,16 @@ btctools
     >>> tx.inputs[0].is_signed()
     True
 
+    >>> tx.verify()
+    True
+
     >>> tx.broadcast()
     'Transaction Submitted'
 
 
 .. code-block:: Python
 
-    >>> from btctools import generate_keypair, push, script_to_address, TX
+    >>> from btctools import generate_keypair, push, script_to_address, OP
 
     >>> private, public = generate_keypair()
 

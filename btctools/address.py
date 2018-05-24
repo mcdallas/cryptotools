@@ -10,7 +10,7 @@ from btctools.network import network, networks
 from btctools.transaction import Output, Transaction
 from btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
 from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
-from transformations import hex_to_bytes, hash160, sha256
+from transformations import hex_to_bytes, bytes_to_hex, bytes_to_int, hash160, sha256, btc_to_satoshi
 
 
 def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) -> str:
@@ -42,26 +42,26 @@ def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) 
 def script_to_bech32(script: bytes, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = sha256(script)
-    return bech32.encode(network['hrp'], witver, witprog)
+    return bech32.encode(network('hrp'), witver, witprog)
 
 
 def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = hash160(pub.encode(compressed=True))
-    return bech32.encode(network['hrp'], witver, witprog)
+    return bech32.encode(network('hrp'), witver, witprog)
 
 
 key_to_addr_versions = {
-    'P2PKH': partial(legacy_address, version_byte=network['keyhash']),
+    'P2PKH': lambda pub: legacy_address(pub, version_byte=network('keyhash')),
     # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=False))), version_byte=network['scripthash']),
+    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=True))), version_byte=network('scripthash')),
     'P2WPKH': partial(pubkey_to_bech32, witver=0x00),
 }
 
 script_to_addr_versions = {
-    'P2SH': partial(legacy_address, version_byte=network['scripthash']),
+    'P2SH': lambda script: legacy_address(script, version_byte=network('scripthash')),
     # 'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network['scripthash']),
+    'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network('scripthash')),
     'P2WSH': partial(script_to_bech32, witver=0x00),
 }
 
@@ -100,7 +100,7 @@ class Address:
         if self._outputs is None:
             import urllib.request
             import json
-            url = network['utxo_url'] + self.address
+            url = network('utxo_url').format(address=self.address)
 
             req = urllib.request.Request(url)
             outputs = []
@@ -134,14 +134,18 @@ class Address:
             if self._outputs else f"Address({self.address}, type={self.type().value})"
 
     def send(self, to: dict, fee: float, private: PrivateKey) -> Transaction:
-        balance = self.balance()
+        balance = btc_to_satoshi(self.balance())
+        fee = btc_to_satoshi(fee)
+        to = {key: btc_to_satoshi(val) for key, val in to.items()}
         sum_send = sum(to.values())
         if balance < sum_send + fee:
             raise ValidationError("Insufficient balance")
         elif balance > sum_send + fee:
-            raise ValidationError(f"You are trying to send {sum_send} BTC which is less than this address' current balance of {balance}. You must provide a change address or explicitly add the difference as a fee")
+            raise ValidationError(f"You are trying to send {sum_send/10**8} BTC which is "
+                                  f"less than this address' current balance of {balance/10**8}."
+                                  f" You must provide a change address or explicitly add the difference as a fee")
         inputs = [out.spend() for out in self.utxos]
-        outputs = [Address(addr).receive(val) for addr, val in to.items()]
+        outputs = [Address(addr)._receive(val) for addr, val in to.items()]
         tx = Transaction(inputs=inputs, outputs=outputs)
         for idx in range(len(tx.inputs)):
             tx.inputs[idx].tx_index = idx
@@ -150,12 +154,10 @@ class Address:
             inp.sign(private)
         return tx
 
-    def receive(self, value):
+    def _receive(self, value: int):
         """Creates an output that sends to this address"""
         addr_type = self.type()
-        value = value * 10**8
-        assert isinstance(value, int) or value.is_integer()
-        output = Output(value=int(value), script=b'')
+        output = Output(value=value, script=b'')
         if addr_type == TX.P2PKH:
             address = base58.decode(self.address).rjust(25, b'\x00')
             keyhash = address[1:-4]
@@ -165,23 +167,27 @@ class Address:
             scripthash = address[1:-4]
             output.script = OP.HASH160.byte + push(scripthash) + OP.EQUAL.byte
         elif addr_type in (TX.P2WPKH, TX.P2WSH):
-            witness_version, witness_program = bech32.decode(network['hrp'], self.address)
-            output.script = OP(witness_byte(witness_version)).byte + push(bytes(witness_program))
+            witness_version, witness_program = bech32.decode(network('hrp'), self.address)
+            output.script = OP(bytes_to_int(witness_byte(witness_version))).byte + push(bytes(witness_program))
         else:
             raise ValidationError(f"Cannot create output of type {addr_type}")
         return output
 
 
-def send(address, to, fee, private):
-    addr = Address(address)
+def send(source, to, fee, private):
+    addr = Address(source)
     prv_to_addr = private.to_public().to_address(addr.type().value)
-    assert addr == prv_to_addr, 'This private key does not correspond to the given address'
+    assert source == prv_to_addr, 'This private key does not correspond to the given address'
     tx = addr.send(to=to, fee=fee, private=private)
     assert tx.verify(), 'Something went wrong, could not verify signed transaction'
+    result = tx.broadcast()
+    if result == 'Transaction Submitted':
+        return bytes_to_hex(tx.txid()[::-1])
+    raise UpstreamError(result)
 
 
 def address_type(addr):
-    if addr.startswith(('1', '3', 'm', 'n')):
+    if addr.startswith(('1', '2', '3', 'm', 'n')):
         try:
             address = base58.decode(addr).rjust(25, b'\x00')
         except Base58DecodeError as e:
@@ -193,12 +199,12 @@ def address_type(addr):
         if sha256(sha256(payload))[:4] != checksum:
             raise InvalidAddress(f"{addr} : Invalid checksum") from None
         try:
-            return {network['keyhash']: TX.P2PKH, network['scripthash']: TX.P2SH}[version_byte]
+            return {network('keyhash'): TX.P2PKH, network('scripthash'): TX.P2SH}[version_byte]
         except KeyError:
             raise InvalidAddress(f"{addr} : Invalid version byte") from None
-    elif addr.startswith(network['hrp']):
+    elif addr.startswith(network('hrp')):
         try:
-            witness_version, witness_program = bech32.decode(network['hrp'], addr)
+            witness_version, witness_program = bech32.decode(network('hrp'), addr)
         except Bech32DecodeError as e:
             raise InvalidAddress(f"{addr} : {e}") from None
 

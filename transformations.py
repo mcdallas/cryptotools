@@ -70,3 +70,9 @@ def bin_to_bytes(b):
 
 def bytes_to_bin(b):
     return ''.join((int_to_bin(i).zfill(8) for i in b))
+
+
+def btc_to_satoshi(value: float):
+    value = float(value * 10**8)
+    assert value.is_integer(), 'The smallest denomination is 1 satoshi or 10^-8 BTC'
+    return int(value)
