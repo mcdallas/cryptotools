@@ -54,10 +54,10 @@ class TestLegacyAddress(unittest.TestCase):
         self.assertEqual(script_to_address(script, 'P2SH'), address)
         self.assertEqual(address_type(address), TX.P2SH)
 
-    def test_balance(self):
-        # if satoshi moves his coins this test will fail
-        addr = Address('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
-        self.assertEqual(addr.balance(), 66.65271233)
+    # def test_balance(self):
+    #     # if satoshi moves his coins this test will fail
+    #     addr = Address('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')
+    #     self.assertEqual(addr.balance(), 66.65271233)
 
     def test_address_type(self):
         self.assertEqual(address_type('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'), TX.P2PKH)

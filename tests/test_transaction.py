@@ -205,6 +205,7 @@ class TestTransaction(unittest.TestCase):
             'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
+            '7edb32d4ffd7a385b763c7a8e56b6358bcd729e747290624e18acdbe6209fc45',  # 1-of-1 multisig
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
             'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b',  # 24 inputs 7 outputs
             '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214',  # sends to P2SH and P2WSH
@@ -317,19 +318,19 @@ class TestTransaction(unittest.TestCase):
         sighash = tx.sighash(0, hashcode=SIGHASH.ALL)
         self.assertEqual(bytes_to_hex(sighash), '185c0be5263dce5b4bb50a047973c1b6272bfbd0103a89444597dc40b248ee7c')
 
-        sighash = tx.sighash(0, SIGHASH.NONE)
+        sighash = tx.sighash(0, hashcode=SIGHASH.NONE)
         self.assertEqual(bytes_to_hex(sighash), 'e9733bc60ea13c95c6527066bb975a2ff29a925e80aa14c213f686cbae5d2f36')
 
-        sighash = tx.sighash(0, SIGHASH.SINGLE)
+        sighash = tx.sighash(0, hashcode=SIGHASH.SINGLE)
         self.assertEqual(bytes_to_hex(sighash), '1e1f1c303dc025bd664acb72e583e933fae4cff9148bf78c157d1e8f78530aea')
 
-        sighash = tx.sighash(0, SIGHASH.ALL_ANYONECANPAY)
+        sighash = tx.sighash(0, hashcode=SIGHASH.ALL_ANYONECANPAY)
         self.assertEqual(bytes_to_hex(sighash), '2a67f03e63a6a422125878b40b82da593be8d4efaafe88ee528af6e5a9955c6e')
 
-        sighash = tx.sighash(0, SIGHASH.NONE_ANYONECANPAY)
+        sighash = tx.sighash(0, hashcode=SIGHASH.NONE_ANYONECANPAY)
         self.assertEqual(bytes_to_hex(sighash), '781ba15f3779d5542ce8ecb5c18716733a5ee42a6f51488ec96154934e2c890a')
 
-        sighash = tx.sighash(0, SIGHASH.SINGLE_ANYONECANPAY)
+        sighash = tx.sighash(0, hashcode=SIGHASH.SINGLE_ANYONECANPAY)
         self.assertEqual(bytes_to_hex(sighash), '511e8e52ed574121fc1b654970395502128263f62662e076dc6baf05c2e6a99b')
 
         signatures = [
