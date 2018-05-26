@@ -210,7 +210,8 @@ class VM:
         return self.pop() is True
 
     def verify_p2sh(self):
-        self.step()
+        while len(self.script) > 23:
+            self.step()
 
         state = VM(self.tx, self.index)
         state.stack = deepcopy(self.stack)
@@ -222,17 +223,16 @@ class VM:
 
         # determine if it is a normal P2SH or a nested P2WKH/P2WSH into a P2SH
         nested = self.input.is_nested()
+        state.scriptPubKey = redeem
         if nested == TX.P2WPKH:
             # version = version_byte(redeem)
             if not self.scriptSig == push(redeem):
                 raise InvalidTransaction("The scriptSig must be exactly a push of the BIP16 redeemScript in a P2SH-P2PKH transaction")
             # redeem = witness_program(redeem)
-            state.scriptPubKey = redeem
             state.scriptSig = b''
 
             return state.verify_p2wpkh()
         elif nested == TX.P2WSH:
-            state.scriptPubKey = redeem
             state.scriptSig = b''
             return state.verify_p2wsh()
 
@@ -354,7 +354,7 @@ class VM:
         valid_signatures = []
         for raw_sig in raw_signatures:
             sig, hashcode = Signature.decode(raw_sig[:-1]), SIGHASH(raw_sig[-1])
-            sighash = self.tx.sighash(self.index, hashcode=hashcode)
+            sighash = self.tx.sighash(self.index, script=self.scriptPubKey, hashcode=hashcode)
             for pub in keys:
                 valid = sig.verify_hash(sighash, pub)
                 if valid:

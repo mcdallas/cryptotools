@@ -475,18 +475,18 @@ class Transaction:
             resp = e.read().decode()
             raise UpstreamError(resp)
 
-    def sighash(self, i, hashcode=SIGHASH.ALL):
+    def sighash(self, i, script=b'', hashcode=SIGHASH.ALL):
         inp = self.inputs[i]
         tx_type = inp.ref().type()
 
         if tx_type in (TX.P2PK, TX.P2PKH) or (tx_type == TX.P2SH and not inp.is_nested()):
-            preimage = self.signature_form_legacy(i=i, hashcode=hashcode)
+            preimage = self.signature_form_legacy(i=i, script=script, hashcode=hashcode)
         else:
             preimage = self.signature_form_segwit(i=i, hashcode=hashcode)
 
         return sha256(sha256(preimage))
 
-    def signature_form_legacy(self, i, hashcode=SIGHASH.ALL):
+    def signature_form_legacy(self, i, script=b'', hashcode=SIGHASH.ALL):
         """Create the object to be signed for the i-th input of this transaction"""
         # Recreates the object that needs to be signed which is not the actual transaction
         # More info at:
@@ -498,7 +498,7 @@ class Transaction:
         tx = deepcopy(self)
 
         # the input references a previous output from which we need the scriptPubKey
-        script = tx.inputs[i].ref().script
+        script = script or tx.inputs[i].ref().script
 
         for input in tx.inputs:
             input.script = b''
