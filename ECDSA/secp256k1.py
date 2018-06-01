@@ -24,6 +24,10 @@ class Point(ECDSA.Point):
 
 class PrivateKey(message.Message):
 
+    def __init__(self, bts):
+        assert bytes_to_int(bts) < N, 'Key larger than Curve Order'
+        super().__init__(bts)
+
     @classmethod
     def random(cls):
         key = secrets.randbelow(N)
