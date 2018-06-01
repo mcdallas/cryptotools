@@ -1,6 +1,8 @@
-
+import unicodedata
+import hashlib
 from pathlib import Path
 from bisect import bisect_left
+from .pbkdf2 import pbkdf2_bin
 
 from transformations import int_to_bin, bin_to_bytes, bytes_to_bin, sha256
 
@@ -33,3 +35,22 @@ def check(mnemonic):
     checksum_length = len(mnemonic)//3
     data, checksum = bin_to_bytes(bits[:-checksum_length]), bits[-checksum_length:]
     return bytes_to_bin(sha256(data)).zfill(256)[:checksum_length] == checksum
+
+
+def normalize_string(txt):
+    if isinstance(txt, bytes):
+        utxt = txt.decode('utf8')
+    elif isinstance(txt, str):  # noqa: F821
+        utxt = txt
+    else:
+        raise TypeError("String value expected")
+
+    return unicodedata.normalize('NFKD', utxt)
+
+
+def to_seed(mnemonic, passphrase=''):
+    mnemonic = normalize_string(mnemonic)
+    passphrase = normalize_string(passphrase)
+    return pbkdf2_bin(mnemonic, 'mnemonic' + passphrase, iterations=2048, keylen=64, hashfunc=hashlib.sha512)
+
+
