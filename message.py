@@ -148,3 +148,22 @@ def is_signature(hexstr):
     except (AssertionError, IndexError):
         return False
     return True
+
+
+def verify_openssl(sig: Signature, sigform: bytes, pub: 'PublicKey'):
+    """Validate a signature using OpenSSL"""
+    import os
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as dirname:
+        with open(dirname + '/sig.raw', 'wb') as file:
+            file.write(sig.encode())
+
+        with open(dirname + '/hash1.sha256', 'wb') as file:
+            file.write(sha256(sigform))
+
+        with open(dirname + '/key.hex', 'w') as file:
+            file.write('3056301006072a8648ce3d020106052b8104000a034200\n' + pub.hex())
+
+        os.system(f'xxd -r -p < {dirname}/key.hex | openssl pkey -pubin -inform der > {dirname}/key.pem')
+        os.system(f'openssl sha256 < {dirname}/hash1.sha256 -verify {dirname}/key.pem -signature {dirname}/sig.raw')
