@@ -12,6 +12,10 @@ with open(HERE / 'wordlist.txt') as file:
     WORDS = file.read().split('\n')
 
 
+class InvalidMnemonic(Exception):
+    pass
+
+
 def binary_search(word):
     hi, lo = len(WORDS), 0
     pos = bisect_left(WORDS, word, lo, hi)  # find insertion position
@@ -51,6 +55,8 @@ def normalize_string(txt):
 def to_seed(mnemonic, passphrase=''):
     mnemonic = normalize_string(mnemonic)
     passphrase = normalize_string(passphrase)
+    if not check(mnemonic):
+        raise InvalidMnemonic
     return pbkdf2_bin(mnemonic, 'mnemonic' + passphrase, iterations=2048, keylen=64, hashfunc=hashlib.sha512)
 
 

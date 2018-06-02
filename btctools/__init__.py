@@ -5,6 +5,7 @@ from btctools.address import pubkey_to_address, script_to_address, Address, send
 from btctools.transaction import Transaction, Output, Input
 from btctools.opcodes import SIGHASH, TX, OP
 from btctools.script import op_push, push, VM, asm, is_witness_program, witness_program
+from btctools.HD.bip32 import Xprv, Xpub
 
 __all__ = [
     'PrivateKey',
@@ -46,5 +47,7 @@ __all__ = [
     'int_to_hex',
     'hex_to_int',
     'str_to_hex',
-    'hex_to_str'
+    'hex_to_str',
+    'Xprv',
+    'Xpub'
 ]

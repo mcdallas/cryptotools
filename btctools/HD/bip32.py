@@ -6,6 +6,7 @@ from btctools import base58
 from ECDSA.secp256k1 import CURVE, PrivateKey, PublicKey
 from transformations import int_to_bytes, bytes_to_int, hex_to_bytes, hash160, sha256
 from btctools.network import network
+from . import to_seed
 
 
 """https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-functions"""
@@ -18,8 +19,9 @@ class KeyDerivationError(Exception):
 
 
 class ExtendedKey:
+    root_path = NotImplemented
 
-    def __init__(self, key: KEY, code: bytes, depth=0, i=None):
+    def __init__(self, key: KEY, code: bytes, depth=0, i=None, parent=b'\x00\x00\x00\x00', path=None):
         self.key = key
         self.code = code
         assert depth in range(256), 'Depth can only be 0-255'
@@ -27,9 +29,16 @@ class ExtendedKey:
         if i is not None:
             assert 0 <= i < 1 << 32, 'Invalid i'
         self.i = i
+        self.parent = parent
+        self.path = path or self.root_path
+        assert (self.depth == 0 and self.i is None and self.parent == b'\x00\x00\x00\x00' and self.path == self.root_path) or \
+               (self.depth != 0 and self.i is not None and self.parent != b'\x00\x00\x00\x00' and self.path != self.root_path)
 
     def child(self, i):
         raise NotImplementedError
+
+    def is_master(self):
+        return self.depth == 0 and self.i is None and self.parent == b'\x00\x00\x00\x00' and self.path == self.root_path
 
     def __truediv__(self, other):
         if isinstance(other, float):
@@ -42,8 +51,10 @@ class ExtendedKey:
             raise TypeError
         return self.child(i)
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.key.wif(compressed=True)})"
+    def __floordiv__(self, other):
+        if not isinstance(other, int):
+            raise TypeError
+        return self.child(other + 2**31)
 
     def id(self):
         raise NotImplementedError
@@ -79,7 +90,7 @@ class ExtendedKey:
         key = read(33)
         key = PrivateKey(key) if net == network('xprv') else PublicKey.decode(key)
         assert not bts, 'Leftover bytes'
-        return constructor(key, code, depth=depth, i=i)
+        return constructor(key, code, depth=depth, i=i, parent=fingerprint)
 
     @classmethod
     def decode(cls, string: str) -> 'ExtendedKey':
@@ -89,8 +100,12 @@ class ExtendedKey:
         assert sha256(sha256(data)).startswith(checksum), 'Invalid checksum'
         return cls.deserialize(data)
 
+    def __eq__(self, other):
+        return self.encode() == other.encode()
+
 
 class Xprv(ExtendedKey):
+    root_path = 'm'
 
     def child(self, i: int) -> 'Xprv':
         hardened = i >= 1 << 31
@@ -105,10 +120,14 @@ class Xprv(ExtendedKey):
         if I_L >= CURVE.N or key == 0:
             return self.child(i+1)
         ret_code = I_R
-        return Xprv(PrivateKey.from_int(key), ret_code, depth=self.depth + 1, i=i)
+        if hardened:
+            path = self.path + f'/{i - 2**31}h'
+        else:
+            path = self.path + f'/{i}'
+        return Xprv(PrivateKey.from_int(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path)
 
     def to_xpub(self) -> 'Xpub':
-        return Xpub(self.key.to_public(), self.code, depth=self.depth, i=self.i)
+        return Xpub(self.key.to_public(), self.code, depth=self.depth, i=self.i, parent=self.parent, path=self.path.replace('m', 'M'))
 
     def to_child_xpub(self, i: int) -> 'Xpub':
         # return self.child(i).to_xpub()  # works always
@@ -123,9 +142,8 @@ class Xprv(ExtendedKey):
     def serialize(self):
         version = network('xprv')
         depth = int_to_bytes(self.depth)
-        fingerprint = bytes(4) if self.depth == 0 else self.fingerprint()
-        child = bytes(4) if self.i is None else int_to_bytes(self.i).rjust(4, b'\x00')
-        return version + depth + fingerprint + child + self.code + self.keydata()
+        child = bytes(4) if self.is_master() else int_to_bytes(self.i).rjust(4, b'\x00')
+        return version + depth + self.parent + child + self.code + self.keydata()
 
     @classmethod
     def from_seed(cls, seed: Union[bytes, str]) -> 'Xprv':
@@ -139,24 +157,37 @@ class Xprv(ExtendedKey):
         key, code = PrivateKey(I_L), I_R
         return cls(key, code)
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}(path={self.path}, key={self.key.wif(compressed=True)})"
+
+    @classmethod
+    def from_mnemonic(cls, mnemonic: str, passphrase='') -> 'Xprv':
+        seed = to_seed(mnemonic=mnemonic, passphrase=passphrase)
+        return cls.from_seed(seed)
+
+    def address(self, addrtype):
+        return self.key.to_public().to_address(addrtype, compressed=True)
+
 
 class Xpub(ExtendedKey):
+    root_path = 'M'
 
     def child(self, i: int) -> 'Xpub':
         hardened = i >= 1 << 31
 
         if hardened:
-            raise KeyDerivationError('Cannot derive a hardened key from a Public key')
+            raise KeyDerivationError('Cannot derive a hardened key from an extended public key')
 
-        I = hmac.new(key=self.code, msg=self.keydata() + int_to_bytes(i).rjust(32, b'\x00'))
+        I = hmac.new(key=self.code, msg=self.keydata() + int_to_bytes(i).rjust(4, b'\x00'), digestmod=hashlib.sha512).digest()
 
         I_L, I_R = I[:32], I[32:]
 
         key = PrivateKey(I_L).to_public().point + self.key.point
         ret_code = I_R
+        path = self.path + f'/{i}'
 
         # TODO add point at infinity check
-        return Xpub(key, ret_code, depth=self.depth + 1, i=i)
+        return Xpub(PublicKey(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path)
 
     def id(self):
         return hash160(self.key.encode(compressed=True))
@@ -167,6 +198,11 @@ class Xpub(ExtendedKey):
     def serialize(self):
         version = network('xpub')
         depth = int_to_bytes(self.depth)
-        fingerprint = bytes(4) if self.depth == 0 else self.fingerprint()
-        child = bytes(4) if self.i is None else int_to_bytes(self.i).rjust(4, b'\x00')
-        return version + depth + fingerprint + child + self.code + self.keydata()
+        child = bytes(4) if self.is_master() else int_to_bytes(self.i).rjust(4, b'\x00')
+        return version + depth + self.parent + child + self.code + self.keydata()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(path={self.path}, key={self.key.hex(compressed=True)})"
+
+    def address(self, addrtype):
+        return self.key.to_address(addrtype, compressed=True)
