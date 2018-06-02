@@ -136,8 +136,10 @@ class PublicKey:
     def hex(self, compressed=False) -> str:
         return bytes_to_hex(self.encode(compressed=compressed))
 
-    def to_address(self, addrtype: str) -> str:
+    def to_address(self, addrtype: str, compressed=False) -> str:
         from btctools.address import pubkey_to_address
+        if compressed is True and addrtype == 'P2PKH':
+            return pubkey_to_address(self.encode(compressed=True), addrtype)
         return pubkey_to_address(self, addrtype)
 
 
