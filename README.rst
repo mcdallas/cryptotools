@@ -9,7 +9,34 @@ use this for anything serious because I am not a security expert.
 Examples
 --------
 
-ECDSA
+HD Wallets
+
+.. code-block:: Python
+    from btctools import Xprv
+
+    >>> m = Xprv.from_mnemonic('impulse prize erode winner pupil fun off addict ...')
+    >>> m.encode()
+    'xprv9s21ZrQH143K38bNJiHY54kkjio8o6aw3bRjCbzi8KgRxNy98avUribz1wk85ToSUV2VwVuc73NJWc2YGwpMtqz7bBFUh9Q77RtJeuh2zvy'
+
+    >>> m/44/0/0/0
+    Xprv(path=m/44/0/0/0, key=L1WKXyMwKnp8wPwAtjwiKWunACY5RSUXAzmS6jDRRHcHnDbeRiKu)
+
+    >>> m/0./123/5.  # Use floats for hardened path, alternative is // e.g m//0/123//5
+    Xprv(path=m/0h/123/5h, key=L3qskbdzgNu4kwjx2QU63q59khpEHVaSbqd2Pc268Jngiha6mbfQ)
+
+    >>> M = m.to_xpub()
+
+    >>> (m/123/456).to_xpub() == M/123/456
+    True
+
+    >>> (m/44./0./0./0/0).address('P2PKH')  # bip44
+    '1BTYXdyrBh1yRCDpqyDhoQG896bnzqtaPz'
+
+    >>> (m/84./0./0./0/0).address('P2WPKH')  # bip84
+    'bc1qjnx8cq32z2t72tsmuwql3wz22lywlpcm3w52lk'
+
+
+Sign/Verify message:
 
 .. code-block:: Python
 
@@ -23,7 +50,8 @@ ECDSA
     True
 
 
-btctools
+
+Verify a transaction:
 
 .. code-block:: Python
 
@@ -42,6 +70,9 @@ btctools
     >>> tx.verify()
     True
 
+
+Create a transaction and submit it automatically
+
 .. code-block:: Python
 
     import os
@@ -54,6 +85,8 @@ btctools
     >>> send(source='n4SbPWR6EmQMsWaQVYYFXiJgjweGKE4XnQ', to={'n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66': 0.46}, fee=0.01, private=key)
     '907b92969cb3a16ddb45591bf2530f177b7f10cef4e62c331596a84f66c3b8c3'  # txid
 
+
+Create and broadcast manually
 
 .. code-block:: Python
 
@@ -83,6 +116,7 @@ btctools
     >>> tx.broadcast()
     'Transaction Submitted'
 
+Create keys/addresses (including segwit)
 
 .. code-block:: Python
 
@@ -130,8 +164,7 @@ btctools
     'bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'
 
 
-
-vanitygen
+Vanity address generator
 
 .. code-block:: Python
 
