@@ -5,7 +5,7 @@ from typing import Union, Tuple
 
 from btctools import base58, bech32
 from btctools.script import push, witness_byte
-from btctools.opcodes import TX, OP
+from btctools.opcodes import TX, OP, ADDRESS
 from btctools.network import network, networks
 from btctools.transaction import Output, Transaction
 from btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
@@ -52,28 +52,28 @@ def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
 
 
 key_to_addr_versions = {
-    'P2PKH': lambda pub: legacy_address(pub, version_byte=network('keyhash')),
+    ADDRESS.P2PKH: lambda pub: legacy_address(pub, version_byte=network('keyhash')),
     # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WPKH-P2SH': lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=True))), version_byte=network('scripthash')),
-    'P2WPKH': partial(pubkey_to_bech32, witver=0x00),
+    ADDRESS.P2WPKH_P2SH: lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=True))), version_byte=network('scripthash')),
+    ADDRESS.P2WPKH: partial(pubkey_to_bech32, witver=0x00),
 }
 
 script_to_addr_versions = {
-    'P2SH': lambda script: legacy_address(script, version_byte=network('scripthash')),
+    ADDRESS.P2SH: lambda script: legacy_address(script, version_byte=network('scripthash')),
     # 'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
-    'P2WSH-P2SH': lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network('scripthash')),
-    'P2WSH': partial(script_to_bech32, witver=0x00),
+    ADDRESS.P2WSH_P2SH: lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network('scripthash')),
+    ADDRESS.P2WSH: partial(script_to_bech32, witver=0x00),
 }
 
 
 def pubkey_to_address(pub: PublicKey, version='P2PKH') -> str:
-    converter = key_to_addr_versions[version.upper()]
+    converter = key_to_addr_versions[ADDRESS(version.upper())]
     return converter(pub)
 
 
 def script_to_address(script: bytes, version='P2SH') -> str:
     """Redeem script to address"""
-    converter = script_to_addr_versions[version.upper()]
+    converter = script_to_addr_versions[ADDRESS(version.upper())]
     return converter(script)
 
 
@@ -158,15 +158,15 @@ class Address:
         """Creates an output that sends to this address"""
         addr_type = self.type()
         output = Output(value=value, script=b'')
-        if addr_type == TX.P2PKH:
+        if addr_type == ADDRESS.P2PKH:
             address = base58.decode(self.address).rjust(25, b'\x00')
             keyhash = address[1:-4]
             output.script = OP.DUP.byte + OP.HASH160.byte + push(keyhash) + OP.EQUALVERIFY.byte + OP.CHECKSIG.byte
-        elif addr_type == TX.P2SH:
+        elif addr_type == ADDRESS.P2SH:
             address = base58.decode(self.address).rjust(25, b'\x00')
             scripthash = address[1:-4]
             output.script = OP.HASH160.byte + push(scripthash) + OP.EQUAL.byte
-        elif addr_type in (TX.P2WPKH, TX.P2WSH):
+        elif addr_type in (ADDRESS.P2WPKH, ADDRESS.P2WSH):
             witness_version, witness_program = bech32.decode(network('hrp'), self.address)
             output.script = OP(bytes_to_int(witness_byte(witness_version))).byte + push(bytes(witness_program))
         else:
@@ -199,7 +199,7 @@ def address_type(addr):
         if sha256(sha256(payload))[:4] != checksum:
             raise InvalidAddress(f"{addr} : Invalid checksum") from None
         try:
-            return {network('keyhash'): TX.P2PKH, network('scripthash'): TX.P2SH}[version_byte]
+            return {network('keyhash'): ADDRESS.P2PKH, network('scripthash'): ADDRESS.P2SH}[version_byte]
         except KeyError:
             raise InvalidAddress(f"{addr} : Invalid version byte") from None
     elif addr.startswith(network('hrp')):
@@ -211,9 +211,9 @@ def address_type(addr):
         if not witness_version == 0x00:
             raise InvalidAddress(f"{addr} : Invalid witness version") from None
         if len(witness_program) == 20:
-            return TX.P2WPKH
+            return ADDRESS.P2WPKH
         elif len(witness_program) == 32:
-            return TX.P2WSH
+            return ADDRESS.P2WSH
         else:
             raise InvalidAddress(f"{addr} : Invalid witness program") from None
     else:
@@ -234,3 +234,5 @@ def vanity(prefix: str) -> Tuple[str, str, str]:
             duration = timedelta(seconds=round(time() - start))
             print(f"Found address starting with {prefix} in {duration} after {counter:,} tries")
             return private.hex(), public.hex(), address
+
+

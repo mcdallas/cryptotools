@@ -4,8 +4,8 @@ import urllib.request
 import urllib.parse
 from lxml import etree
 
-from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, Address
-from btctools.script import push, TX, OP
+from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, ADDRESS
+from btctools.script import push, OP
 from ECDSA.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from transformations import bytes_to_hex, int_to_str
 from btctools import bech32
@@ -35,7 +35,7 @@ class TestLegacyAddress(unittest.TestCase):
 
         self.assertEqual(public.lower(), my_pubkey.hex())
         self.assertEqual(pubkey_to_address(my_pubkey), address)
-        self.assertEqual(address_type(address), TX.P2PKH)
+        self.assertEqual(address_type(address), ADDRESS.P2PKH)
 
     def test_p2sh(self):
         script = secrets.token_bytes(32)
@@ -52,7 +52,7 @@ class TestLegacyAddress(unittest.TestCase):
         address = tree.find('.//input[@name="Base58"]').attrib['value']
 
         self.assertEqual(script_to_address(script, 'P2SH'), address)
-        self.assertEqual(address_type(address), TX.P2SH)
+        self.assertEqual(address_type(address), ADDRESS.P2SH)
 
     # def test_balance(self):
     #     # if satoshi moves his coins this test will fail
@@ -60,8 +60,8 @@ class TestLegacyAddress(unittest.TestCase):
     #     self.assertEqual(addr.balance(), 66.65271233)
 
     def test_address_type(self):
-        self.assertEqual(address_type('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'), TX.P2PKH)
-        self.assertEqual(address_type('34eBzenHJEdk5PK9ojuuBZvCRtNhvvysYZ'), TX.P2SH)
+        self.assertEqual(address_type('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'), ADDRESS.P2PKH)
+        self.assertEqual(address_type('34eBzenHJEdk5PK9ojuuBZvCRtNhvvysYZ'), ADDRESS.P2SH)
 
 
 class TestBech32(unittest.TestCase):
@@ -83,7 +83,7 @@ class TestBech32(unittest.TestCase):
         self.assertEqual(bech32.encode(self.hrp, self.witver, hash160(pubkey.encode(compressed=True))), 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
         address = pubkey_to_address(pubkey, version='P2WPKH')
         self.assertEqual(address, 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
-        self.assertEqual(address_type(address), TX.P2WPKH)
+        self.assertEqual(address_type(address), ADDRESS.P2WPKH)
 
     def test_p2wsh(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#examples"""
@@ -91,7 +91,7 @@ class TestBech32(unittest.TestCase):
         script = push(pubkey.encode(compressed=True)) + OP.CHECKSIG.byte  # <key> <OP_CHECKSIG>
         address = script_to_address(script, 'P2WSH')
         self.assertEqual(address, 'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3')
-        self.assertEqual(address_type(address), TX.P2WSH)
+        self.assertEqual(address_type(address), ADDRESS.P2WSH)
 
     def test_valid_bech32(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#test-vectors"""
@@ -161,8 +161,8 @@ class TestBech32(unittest.TestCase):
                 address_to_script(addr)
 
     def test_address_type(self):
-        self.assertEqual(address_type('bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'), TX.P2WPKH)
-        self.assertEqual(address_type('bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'), TX.P2WSH)
+        self.assertEqual(address_type('bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'), ADDRESS.P2WPKH)
+        self.assertEqual(address_type('bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'), ADDRESS.P2WSH)
 
 
 class TestNet(unittest.TestCase):
@@ -176,7 +176,7 @@ class TestNet(unittest.TestCase):
         btctools.network.current_network = btctools.network.NETWORK.MAIN
 
     def test_address_type(self):
-        self.assertEqual(address_type('mgxVT9fzHwYDsgEGJSZekKgYbAyrBkqdpi'), TX.P2PKH)
-        self.assertEqual(address_type('2MzAQDXGpmJyS6ybm2q57dbe8j2oxmvRDkc'), TX.P2SH)
-        self.assertEqual(address_type('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66'), TX.P2PKH)
-        self.assertEqual(address_type('tb1q7w5dhw4hl5yvxvl3yvv2xxvh7jwm28p9kpelcp'), TX.P2WPKH)
+        self.assertEqual(address_type('mgxVT9fzHwYDsgEGJSZekKgYbAyrBkqdpi'), ADDRESS.P2PKH)
+        self.assertEqual(address_type('2MzAQDXGpmJyS6ybm2q57dbe8j2oxmvRDkc'), ADDRESS.P2SH)
+        self.assertEqual(address_type('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66'), ADDRESS.P2PKH)
+        self.assertEqual(address_type('tb1q7w5dhw4hl5yvxvl3yvv2xxvh7jwm28p9kpelcp'), ADDRESS.P2WPKH)
