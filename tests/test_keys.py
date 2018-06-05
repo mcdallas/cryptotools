@@ -3,14 +3,21 @@ import unittest
 import urllib
 import urllib.request
 import urllib.parse
+import pathlib
+import secrets
+import json
 from lxml import etree
 from os import urandom
-import secrets
+
 
 from ECDSA.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
 from message import Signature
-from transformations import hex_to_bytes, hex_to_int
+from transformations import hex_to_bytes, hex_to_int, bytes_to_hex
 from btctools.HD.bip32 import Xprv, Xpub
+from btctools.HD import to_seed
+from btctools.opcodes import ADDRESS
+
+HERE = pathlib.Path(__file__).parent.absolute()
 
 
 class TestPubKey(unittest.TestCase):
@@ -172,3 +179,87 @@ class TestHD(unittest.TestCase):
         self.assertEqual(xprv.encode(), 'xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L')
         self.assertEqual(xprv.to_xpub().encode(), 'xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y')
 
+    def test_bip39(self):
+        with open(HERE / 'vectors' / 'mnemonic.txt') as fileobj:
+            data = json.load(fileobj)
+
+        for entropy, mnemonic, seed, master in data['english']:
+            my_seed = to_seed(mnemonic, passphrase='TREZOR')
+            self.assertEqual(bytes_to_hex(my_seed), seed)
+            xprv = Xprv.from_seed(seed)
+            self.assertEqual(xprv.encode(), master)
+
+    def test_bip49(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki#Test_vectors"""
+        import btctools.network
+        btctools.network.current_network = btctools.network.NETWORK.TEST
+
+        mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+        m = Xprv.from_mnemonic(mnemonic)
+        self.assertEqual(m.encode(), 'tprv8ZgxMBicQKsPe5YMU9gHen4Ez3ApihUfykaqUorj9t6FDqy3nP6eoXiAo2ssvpAjoLroQxHqr3R5nE3a5dU3DHTjTgJDd7zrbniJr6nrCzd')
+
+        xprv = m/49./1./0.
+        self.assertEqual(xprv.encode(), 'tprv8gRrNu65W2Msef2BdBSUgFdRTGzC8EwVXnV7UGS3faeXtuMVtGfEdidVeGbThs4ELEoayCAzZQ4uUji9DUiAs7erdVskqju7hrBcDvDsdbY')
+
+        xprv = m/49./1./0./0/0
+        self.assertEqual(xprv.key.wif(compressed=True), 'cULrpoZGXiuC19Uhvykx7NugygA3k86b3hmdCeyvHYQZSxojGyXJ')
+        self.assertEqual(xprv.key.hex(), 'c9bdb49cfbaedca21c4b1f3a7803c34636b1d7dc55a717132443fc3f4c5867e8')
+        self.assertEqual(xprv.to_xpub().key.hex(compressed=True), '03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f')
+        self.assertEqual(xprv.key.to_public().to_address('P2WPKH-P2SH'), '2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
+
+        btctools.network.current_network = btctools.network.NETWORK.MAIN
+
+    def test_bip84(self):
+        """https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki#test-vectors"""
+
+        mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
+        m = Xprv.from_mnemonic(mnemonic, addresstype='P2WPKH')
+        M = m.to_xpub()
+
+        self.assertEqual(m.encode(), 'zprvAWgYBBk7JR8Gjrh4UJQ2uJdG1r3WNRRfURiABBE3RvMXYSrRJL62XuezvGdPvG6GFBZduosCc1YP5wixPox7zhZLfiUm8aunE96BBa4Kei5')
+        self.assertEqual(M.encode(), 'zpub6jftahH18ngZxLmXaKw3GSZzZsszmt9WqedkyZdezFtWRFBZqsQH5hyUmb4pCEeZGmVfQuP5bedXTB8is6fTv19U1GQRyQUKQGUTzyHACMF')
+
+        xprv = m/84./0./0.
+        self.assertEqual(xprv.encode(), 'zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE')
+        self.assertEqual(xprv.to_xpub().encode(), 'zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs')
+
+        xprv = m/84./0./0./0/0
+        self.assertEqual(xprv.key.wif(compressed=True), 'KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d')
+        self.assertEqual(xprv.to_xpub().key.hex(compressed=True), '0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c')
+        self.assertEqual(xprv.address(), 'bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu')
+
+        xprv = m/84./0./0./0/1
+        self.assertEqual(xprv.key.wif(compressed=True), 'Kxpf5b8p3qX56DKEe5NqWbNUP9MnqoRFzZwHRtsFqhzuvUJsYZCy')
+        self.assertEqual(xprv.to_xpub().key.hex(compressed=True), '03e775fd51f0dfb8cd865d9ff1cca2a158cf651fe997fdc9fee9c1d3b5e995ea77')
+        self.assertEqual(xprv.address(), 'bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g')
+
+        xprv = m/84./0./0./1/0
+        self.assertEqual(xprv.key.wif(compressed=True), 'KxuoxufJL5csa1Wieb2kp29VNdn92Us8CoaUG3aGtPtcF3AzeXvF')
+        self.assertEqual(xprv.to_xpub().key.hex(compressed=True), '03025324888e429ab8e3dbaf1f7802648b9cd01e9b418485c5fa4c1b9b5700e1a6')
+        self.assertEqual(xprv.address(), 'bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el')
+
+    def test_decode_bip84(self):
+        prv = 'zprvAWgYBBk7JR8Gjrh4UJQ2uJdG1r3WNRRfURiABBE3RvMXYSrRJL62XuezvGdPvG6GFBZduosCc1YP5wixPox7zhZLfiUm8aunE96BBa4Kei5'
+        m = Xprv.decode(prv)
+        self.assertEqual(m.type, ADDRESS.P2WPKH)
+        self.assertTrue(m.is_master())
+
+        xprv = Xprv.decode('zprvAg4yBxbZcJpcLxtXp5kZuh8jC1FXGtZnCjrkG69JPf96KZ1TqSakA1HF3EZkNjt9yC4CTjm7txs4sRD9EoHLgDqwhUE6s1yD9nY4BCNN4hw')
+        xpub = Xpub.decode('zpub6u4KbU8TSgNuZSxzv7HaGq5Tk361gMHdZxnM4UYuwzg5CMLcNytzhobitV4Zq6vWtWHpG9QijsigkxAzXvQWyLRfLq1L7VxPP1tky1hPfD4')
+        self.assertEqual(xprv.to_xpub(), xpub)
+        self.assertEqual(xprv.path, "m/x/x/x/0")
+        self.assertEqual(xpub.path, "M/x/x/x/0")
+
+    def test_decode_bip49(self):
+
+        prv = 'yprvABrGsX5C9jantZVwdwcQhDXkqsu4RoSAZKBwPnLA3uyeVM3C3fvTuqzru4fovMSLqYSqALGe9MBqCf7Pg7Y7CTsjoNnLYg6HxR2Xo44NX7E'
+        m = Xprv.decode(prv)
+        self.assertEqual(m.type, ADDRESS.P2WPKH_P2SH)
+        self.assertTrue(m.is_master())
+
+        xprv = Xprv.decode('yprvAKoaYbtSYB8DmmBt2Z7TgukWphdCiSMRVdzDK3aHUSna8jo6xnG41jQ11ToPk4SQnE5sau6CYK4od9fyz53mK7huW4JskyMMEmixACuyhhr')
+        xpub = Xpub.decode('ypub6Ynvx7RLNYgWzFGM8aeU43hFNjTh7u5Grrup7Ryu2nKZ1Y8FWKaJZXiUrkJSnMmGVNBoVH1DNDtQ32tR4YFDRSpSUXjjvsiMnCvoPHVWXJP')
+
+        self.assertEqual(xprv.to_xpub(), xpub)
+        self.assertEqual(xprv.path, "m/x/x/x/0")
+        self.assertEqual(xpub.path, "M/x/x/x/0")
