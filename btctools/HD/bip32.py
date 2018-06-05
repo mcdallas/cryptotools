@@ -4,9 +4,10 @@ from typing import Union
 
 from btctools import base58
 from ECDSA.secp256k1 import CURVE, PrivateKey, PublicKey
-from transformations import int_to_bytes, bytes_to_int, hex_to_bytes, hash160, sha256
+from transformations import int_to_bytes, bytes_to_int, hex_to_bytes, bytes_to_hex, hash160, sha256
 from btctools.network import network
 from . import to_seed
+from ..address import ADDRESS
 
 
 """https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-functions"""
@@ -21,18 +22,21 @@ class KeyDerivationError(Exception):
 class ExtendedKey:
     root_path = NotImplemented
 
-    def __init__(self, key: KEY, code: bytes, depth=0, i=None, parent=b'\x00\x00\x00\x00', path=None):
+    def __init__(self, key: KEY, code: bytes, depth=0, i=None, parent=b'\x00\x00\x00\x00', path=None, addresstype='P2PKH'):
         self.key = key
         self.code = code
         assert depth in range(256), 'Depth can only be 0-255'
         self.depth = depth
         if i is not None:
-            assert 0 <= i < 1 << 32, 'Invalid i'
+            assert 0 <= i < 1 << 32, f'Invalid i : {i}'
         self.i = i
         self.parent = parent
         self.path = path or self.root_path
         assert (self.depth == 0 and self.i is None and self.parent == b'\x00\x00\x00\x00' and self.path == self.root_path) or \
-               (self.depth != 0 and self.i is not None and self.parent != b'\x00\x00\x00\x00' and self.path != self.root_path)
+               (self.depth != 0 and self.i is not None and self.parent != b'\x00\x00\x00\x00' and self.path != self.root_path), \
+            f"Unable to determine if root path (depth={self.depth}, i={self.i}, path={self.path}, parent={bytes_to_hex(self.parent)})"
+
+        self.type = ADDRESS(addresstype)
 
     def child(self, i):
         raise NotImplementedError
@@ -80,22 +84,32 @@ class ExtendedKey:
             return data
 
         net = read(4)
-        assert net in (network('xprv'), network('xpub')), 'Invalid network bytes'
-        constructor = Xprv if net == network('xprv') else Xpub
+        is_private = net in network('extended_prv').values()
+        is_public = net in network('extended_pub').values()
+        assert is_public ^ is_private, f'Invalid network bytes : {bytes_to_hex(net)}'
+        address_lookup = {val: key for key, val in (network('extended_prv') if is_private else network('extended_pub')).items()}
+        constructor = Xprv if is_private else Xpub
         depth = bytes_to_int(read(1))
-        assert depth in range(256), 'Invalid depth'
+        assert depth in range(256), f'Invalid depth : {depth}'
         fingerprint = read(4)
         i = bytes_to_int(read(4))
+        if depth == 0:
+            i = None
+            path = None
+        else:
+            ih = f'{i}' if i < 2**31 else f"{i - 2**31}h"
+            path = '/'.join([constructor.root_path] + ['x' for _ in range(depth - 1)] + [ih])
+
         code = read(32)
         key = read(33)
-        key = PrivateKey(key) if net == network('xprv') else PublicKey.decode(key)
+        key = PrivateKey(key) if is_private else PublicKey.decode(key)
         assert not bts, 'Leftover bytes'
-        return constructor(key, code, depth=depth, i=i, parent=fingerprint)
+        return constructor(key, code, depth=depth, i=i, parent=fingerprint, path=path, addresstype=address_lookup[net])
 
     @classmethod
     def decode(cls, string: str) -> 'ExtendedKey':
         bts = base58.decode(string)
-        assert len(bts) == 82, 'Invalid length'
+        assert len(bts) == 82, f'Invalid length {len(bts)})'
         data, checksum = bts[:78], bts[78:]
         assert sha256(sha256(data)).startswith(checksum), 'Invalid checksum'
         return cls.deserialize(data)
@@ -124,10 +138,10 @@ class Xprv(ExtendedKey):
             path = self.path + f'/{i - 2**31}h'
         else:
             path = self.path + f'/{i}'
-        return Xprv(PrivateKey.from_int(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path)
+        return Xprv(PrivateKey.from_int(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path, addresstype=self.type.value)
 
     def to_xpub(self) -> 'Xpub':
-        return Xpub(self.key.to_public(), self.code, depth=self.depth, i=self.i, parent=self.parent, path=self.path.replace('m', 'M'))
+        return Xpub(self.key.to_public(), self.code, depth=self.depth, i=self.i, parent=self.parent, path=self.path.replace('m', 'M'), addresstype=self.type.value)
 
     def to_child_xpub(self, i: int) -> 'Xpub':
         # return self.child(i).to_xpub()  # works always
@@ -140,13 +154,13 @@ class Xprv(ExtendedKey):
         return self.key.bytes().rjust(33, b'\x00')
 
     def serialize(self):
-        version = network('xprv')
+        version = network('extended_prv')[self.type]
         depth = int_to_bytes(self.depth)
         child = bytes(4) if self.is_master() else int_to_bytes(self.i).rjust(4, b'\x00')
         return version + depth + self.parent + child + self.code + self.keydata()
 
     @classmethod
-    def from_seed(cls, seed: Union[bytes, str]) -> 'Xprv':
+    def from_seed(cls, seed: Union[bytes, str], addresstype='P2PKH') -> 'Xprv':
         if isinstance(seed, str):
             seed = hex_to_bytes(seed)
         assert 16 <= len(seed) <= 64, 'Seed should be between 128 and 512 bits'
@@ -155,18 +169,18 @@ class Xprv(ExtendedKey):
         if bytes_to_int(I_L) == 0 or bytes_to_int(I_L) > CURVE.N:
             raise KeyDerivationError
         key, code = PrivateKey(I_L), I_R
-        return cls(key, code)
+        return cls(key, code, addresstype=addresstype)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(path={self.path}, key={self.key.wif(compressed=True)})"
 
     @classmethod
-    def from_mnemonic(cls, mnemonic: str, passphrase='') -> 'Xprv':
+    def from_mnemonic(cls, mnemonic: str, passphrase='', addresstype='P2PKH') -> 'Xprv':
         seed = to_seed(mnemonic=mnemonic, passphrase=passphrase)
-        return cls.from_seed(seed)
+        return cls.from_seed(seed, addresstype=addresstype)
 
-    def address(self, addrtype):
-        return self.key.to_public().to_address(addrtype, compressed=True)
+    def address(self):
+        return self.key.to_public().to_address(self.type.value, compressed=True)
 
 
 class Xpub(ExtendedKey):
@@ -187,7 +201,7 @@ class Xpub(ExtendedKey):
         path = self.path + f'/{i}'
 
         # TODO add point at infinity check
-        return Xpub(PublicKey(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path)
+        return Xpub(PublicKey(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path, addresstype=self.type.value)
 
     def id(self):
         return hash160(self.key.encode(compressed=True))
@@ -196,7 +210,7 @@ class Xpub(ExtendedKey):
         return self.key.encode(compressed=True)
 
     def serialize(self):
-        version = network('xpub')
+        version = network('extended_pub')[self.type]
         depth = int_to_bytes(self.depth)
         child = bytes(4) if self.is_master() else int_to_bytes(self.i).rjust(4, b'\x00')
         return version + depth + self.parent + child + self.code + self.keydata()
@@ -204,5 +218,5 @@ class Xpub(ExtendedKey):
     def __repr__(self):
         return f"{self.__class__.__name__}(path={self.path}, key={self.key.hex(compressed=True)})"
 
-    def address(self, addrtype):
-        return self.key.to_address(addrtype, compressed=True)
+    def address(self):
+        return self.key.to_address(self.type.value, compressed=True)
