@@ -149,9 +149,9 @@ class Input:
         sighash = tx.sighash(idx, hashcode=hashcode)
         sig = private.sign_hash(sighash)
 
-        # https://github.com/bitcoin/bips/blob/master/bip-0146.mediawiki#low_s
-        if sig.s > CURVE.N//2:
-            sig.s = CURVE.N - sig.s
+        # # https://github.com/bitcoin/bips/blob/master/bip-0146.mediawiki#low_s
+        # if sig.s > CURVE.N//2:
+        #     sig.s = CURVE.N - sig.s
 
         raw_sig = sig.encode() + hashcode.byte
         if output_type == TX.P2PKH:

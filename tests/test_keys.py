@@ -91,11 +91,15 @@ class TestSignature(unittest.TestCase):
 
         r = hex_to_int('316eb3cad8b66fcf1494a6e6f9542c3555addbf337f04b62bf4758483fdc881d')
         s = hex_to_int('bf46d26cef45d998a2cb5d2d0b8342d70973fa7c3c37ae72234696524b2bc812')
-        raw_sig = hex_to_bytes('30450220316eb3cad8b66fcf1494a6e6f9542c3555addbf337f04b62bf4758483fdc881d022100bf46d26cef45d998a2cb5d2d0b8342d70973fa7c3c37ae72234696524b2bc812')
+        sig_high_s = hex_to_bytes('30450220316eb3cad8b66fcf1494a6e6f9542c3555addbf337f04b62bf4758483fdc881d022100bf46d26cef45d998a2cb5d2d0b8342d70973fa7c3c37ae72234696524b2bc812')
+        sig_low_s = hex_to_bytes('30440220316eb3cad8b66fcf1494a6e6f9542c3555addbf337f04b62bf4758483fdc881d022040b92d9310ba26675d34a2d2f47cbd27b13ae26a7310f1c99c8bc83a850a792f')
 
-        sig = Signature(r, s)
-        self.assertEqual(sig.encode(), raw_sig)
-        self.assertEqual(sig, Signature.decode(raw_sig))
+        sig_high = Signature(r, s, force_low_s=False)
+        sig_low = Signature(r, s, force_low_s=True)
+        self.assertEqual(sig_low.encode(), sig_low_s)
+        self.assertEqual(sig_high.encode(), sig_high_s)
+        self.assertEqual(sig_low, Signature.decode(sig_high_s))
+        self.assertEqual(sig_low, Signature.decode(sig_low_s))
 
         sig = Signature(secrets.randbelow(CURVE.N), secrets.randbelow(CURVE.N))
         self.assertEqual(sig, Signature.decode(sig.encode()))

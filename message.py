@@ -68,9 +68,15 @@ class Message:
 
 class Signature:
 
-    def __init__(self, r, s):
+    def __init__(self, r, s, force_low_s=True):
         self.r = r
-        self.s = s
+
+        if force_low_s:
+            # https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki#low-s-values-in-signatures
+            from ECDSA.secp256k1 import N
+            self.s = s if s <= N // 2 else N - s
+        else:
+            self.s = s
 
     @classmethod
     def decode(cls, bts):
@@ -79,17 +85,17 @@ class Signature:
         lead = data.popleft() == 0x30
         assert lead, f'Invalid leading byte: 0x{lead:x}'  # ASN1 SEQUENCE
         sequence_length = data.popleft()
-        assert sequence_length in (68, 69, 70), f'Invalid Sequence length: {sequence_length}'
+        assert sequence_length <= 70, f'Invalid Sequence length: {sequence_length}'
         lead = data.popleft()
         assert lead == 0x02, f'Invalid r leading byte: 0x{lead:x}'  # 0x02 byte before r
         len_r = data.popleft()
-        assert len_r in (32, 33), f'Invalid r length: {len_r}'
+        assert len_r <= 33, f'Invalid r length: {len_r}'
         bts = bytes(data)
         r, data = bytes_to_int(bts[:len_r]), deque(bts[len_r:])
         lead = data.popleft()
         assert lead == 0x02, f'Invalid s leading byte: 0x{lead:x}'  # 0x02 byte before s
         len_s = data.popleft()
-        assert len_s in (32, 33), f'Invalid s length: {len_s}'
+        assert len_s <= 33, f'Invalid s length: {len_s}'
         bts = bytes(data)
         s, rest = bytes_to_int(bts[:len_s]), bts[len_s:]
         assert len(rest) == 0, f'{len(rest)} leftover bytes'
@@ -102,11 +108,10 @@ class Signature:
         if r[0] > 0x7f:
             r = b'\x00' + r
         s = int_to_bytes(self.s)
+
         if s[0] > 0x7f:
             s = b'\x00' + s
 
-        r = r.rjust(32, b'\x00')
-        s = s.rjust(32, b'\x00')
         len_r = int_to_bytes(len(r))
         len_s = int_to_bytes(len(s))
         len_sig = int_to_bytes(len(r) + len(s) + 4)
