@@ -17,20 +17,18 @@ main = {
     'scripthash': b'\x05',
     'wif': b'\x80',
     'extended_prv': {
-        ADDRESS.P2PKH: b'\x04\x88\xad\xe4',
-        ADDRESS.P2SH: b'\x04\x88\xad\xe4',
-        ADDRESS.P2WPKH: b'\x04\xb2\x43\x0c',
-        ADDRESS.P2WSH: b'\x02\xaa\x7a\x99',
-        ADDRESS.P2WPKH_P2SH: b'\x04\x9d\x78\x78',
-        ADDRESS.P2WSH_P2SH: b'\x02\x95\xb4\x3f'
+        ADDRESS.P2PKH: b'\x04\x88\xad\xe4',  # xprv
+        ADDRESS.P2WPKH: b'\x04\xb2\x43\x0c',  # zprv
+        ADDRESS.P2WSH: b'\x02\xaa\x7a\x99',  # Zprv
+        ADDRESS.P2WPKH_P2SH: b'\x04\x9d\x78\x78',  # yprv
+        ADDRESS.P2WSH_P2SH: b'\x02\x95\xb4\x3f'  # Yprv
     },
     'extended_pub': {
-        ADDRESS.P2PKH: b'\x04\x88\xb2\x1e',
-        ADDRESS.P2SH: b'\x04\x88\xb2\x1e',
-        ADDRESS.P2WPKH: b'\x04\xb2\x47\x46',
-        ADDRESS.P2WSH: b'\x02\xaa\x7e\xd3',
-        ADDRESS.P2WPKH_P2SH: b'\x04\x9d\x7c\xb2',
-        ADDRESS.P2WSH_P2SH: b'\x02\x95\xb4\x3f'
+        ADDRESS.P2PKH: b'\x04\x88\xb2\x1e',  # xpub
+        ADDRESS.P2WPKH: b'\x04\xb2\x47\x46',  # zpub
+        ADDRESS.P2WSH: b'\x02\xaa\x7e\xd3',  # Zpub
+        ADDRESS.P2WPKH_P2SH: b'\x04\x9d\x7c\xb2',  # ypub
+        ADDRESS.P2WSH_P2SH: b'\x02\x95\xb4\x3f'  # Ypub
     },
     'utxo_url': 'https://blockchain.info/unspent?active={address}',
     'rawtx_url': 'https://blockchain.info/rawtx/{txid}?format=hex',
