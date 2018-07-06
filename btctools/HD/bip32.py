@@ -179,8 +179,8 @@ class Xprv(ExtendedKey):
         seed = to_seed(mnemonic=mnemonic, passphrase=passphrase)
         return cls.from_seed(seed, addresstype=addresstype)
 
-    def address(self):
-        return self.key.to_public().to_address(self.type.value, compressed=True)
+    def address(self, addresstype=None):
+        return self.key.to_public().to_address(addresstype or self.type.value, compressed=True)
 
 
 class Xpub(ExtendedKey):
@@ -218,5 +218,5 @@ class Xpub(ExtendedKey):
     def __repr__(self):
         return f"{self.__class__.__name__}(path={self.path}, key={self.key.hex(compressed=True)})"
 
-    def address(self):
-        return self.key.to_address(self.type.value, compressed=True)
+    def address(self, addresstype=None):
+        return self.key.to_address(addresstype or self.type.value, compressed=True)
