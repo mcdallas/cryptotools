@@ -4,7 +4,7 @@ from functools import partial
 from typing import Union, Tuple
 
 from btctools import base58, bech32
-from btctools.script import push, witness_byte
+from btctools.script import push, witness_byte, get_type, witness_program, version_byte
 from btctools.opcodes import TX, OP, ADDRESS
 from btctools.network import network, networks
 from btctools.transaction import Output, Transaction
@@ -18,10 +18,13 @@ def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) 
     bts = pub_or_script.encode(compressed=False) if isinstance(pub_or_script, PublicKey) else pub_or_script
     hashed = hash160(bts)
     payload = version_byte + hashed
+    return hashed_payload_to_address(payload)
+
+
+def hashed_payload_to_address(payload):
     checksum = sha256(sha256(payload))[:4]
     address = payload + checksum
     return base58.encode(address)
-
 
 ## WAS REPLACED BY BIP 173
 # def pubkey_to_p2wpkh(pub, version_byte, witver):
@@ -88,6 +91,27 @@ def address_to_script(addr: str) -> bytes:
 
     script = witness_byte(witver) + push(bytes(witprog))
     return script
+
+
+def get_address(script):
+    """Extracts the address from a scriptPubkey"""
+    script = hex_to_bytes(script) if isinstance(script, str) else script
+    stype = get_type(script)
+    if stype == TX.P2SH:
+        data = script[2:22]
+        version = network('scripthash')
+        return hashed_payload_to_address(version + data)
+    elif stype == TX.P2PKH:
+        data = script[3:23]
+        version = network('keyhash')
+        return hashed_payload_to_address(version + data)
+    elif stype in (TX.P2WSH, TX.P2WPKH):
+        witver = version_byte(script)
+        witprog = witness_program(script)
+        return bech32.encode(network('hrp'), witver, witprog)
+    elif stype == TX.P2PK:
+        return "N/A"
+    raise ValidationError(f"Unknown script type: {bytes_to_hex(script)}")
 
 
 class Address:

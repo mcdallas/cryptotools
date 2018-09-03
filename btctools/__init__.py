@@ -4,7 +4,7 @@ from transformations import *
 from btctools.address import pubkey_to_address, script_to_address, Address, send, address_to_script, vanity
 from btctools.transaction import Transaction, Output, Input
 from btctools.opcodes import SIGHASH, TX, OP
-from btctools.script import op_push, push, VM, asm, is_witness_program, witness_program
+from btctools.script import op_push, push, VM, asm, is_witness_program, witness_program, decode_scriptpubkey
 from btctools.HD.bip32 import Xprv, Xpub
 
 __all__ = [
@@ -28,6 +28,7 @@ __all__ = [
     'asm',
     'is_witness_program',
     'witness_program',
+    'decode_scriptpubkey',
     'sha256',
     'ripemd160',
     'hash160',

@@ -118,6 +118,35 @@ def pad(val, bytelength):
         raise TypeError('Value should be bytes or int')
 
 
+def get_type(script):
+    """https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/script/script.cpp#L202"""
+    script = hex_to_bytes(script) if isinstance(script, str) else script
+    if script.startswith(OP.HASH160.byte + OP.PUSH20.byte) and script.endswith(OP.EQUAL.byte) and len(script) == 23:
+        return TX.P2SH
+    elif script.startswith(OP.DUP.byte + OP.HASH160.byte) and script.endswith(OP.EQUALVERIFY.byte + OP.CHECKSIG.byte) and len(script) == 25:
+        return TX.P2PKH
+    elif script.startswith(b'\x00' + OP.PUSH32.byte) and len(script) == 34:
+        return TX.P2WSH
+    elif script.startswith(b'\x00' + OP.PUSH20.byte) and len(script) == 22:
+        return TX.P2WPKH
+    elif script.startswith(OP.PUSH65.byte + b'\x04') and script.endswith(OP.CHECKSIG.byte) and len(script) == 67:  # uncompressed PK
+        return TX.P2PK
+    elif script.startswith((b'\x21\x03', b'\x21\x02')) and script.endswith(OP.CHECKSIG.byte) and len(script) == 35:  # compressed PK
+        return TX.P2PK
+    else:
+        raise ScriptValidationError(f"Unknown script type: {bytes_to_hex(script)}")
+
+
+def decode_scriptpubkey(script):
+    from btctools.address import get_address
+    return {
+        "hex": bytes_to_hex(script) if isinstance(script, bytes) else script,
+        "asm": asm(script),
+        "type": get_type(script).value,
+        "address": get_address(script)
+    }
+
+
 class OperationFailure(Exception):
     pass
 

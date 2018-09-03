@@ -6,9 +6,9 @@ from transformations import bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
 from message import is_signature
 from btctools.opcodes import SIGHASH, TX, OP
 from btctools.network import network
-from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush
+from btctools.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush, get_type, decode_scriptpubkey
 from btctools.error import ValidationError, SerializationError, SigningError, UpstreamError, HTTPError
-from ECDSA.secp256k1 import CURVE, is_pubkey
+from ECDSA.secp256k1 import is_pubkey
 
 
 concat = b''.join
@@ -254,21 +254,7 @@ class Output:
         return asm(self.script)
 
     def type(self):
-        """https://github.com/bitcoin/bitcoin/blob/5961b23898ee7c0af2626c46d5d70e80136578d3/src/script/script.cpp#L202"""
-        if self.script.startswith(OP.HASH160.byte + OP.PUSH20.byte) and self.script.endswith(OP.EQUAL.byte) and len(self.script) == 23:
-            return TX.P2SH
-        elif self.script.startswith(OP.DUP.byte + OP.HASH160.byte) and self.script.endswith(OP.EQUALVERIFY.byte + OP.CHECKSIG.byte) and len(self.script) == 25:
-            return TX.P2PKH
-        elif self.script.startswith(b'\x00' + OP.PUSH32.byte) and len(self.script) == 34:
-            return TX.P2WSH
-        elif self.script.startswith(b'\x00' + OP.PUSH20.byte) and len(self.script) == 22:
-            return TX.P2WPKH
-        elif self.script.startswith(OP.PUSH65.byte + b'\x04') and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 67:  # uncompressed PK
-            return TX.P2PK
-        elif self.script.startswith((b'\x21\x03', b'\x21\x02')) and self.script.endswith(OP.CHECKSIG.byte) and len(self.script) == 35:  # compressed PK
-            return TX.P2PK
-        else:
-            raise ValidationError(f"Unknown output type: {bytes_to_hex(self.script)}")
+        return get_type(self.script)
 
     def spend(self):
         """Creates an empty input that spends this output"""
@@ -300,10 +286,7 @@ class Output:
         }
         if index:
             data["n"] = index
-        data["scriptPubKey"] = {
-            "hex": bytes_to_hex(self.script),
-            "asm": self.asm()
-        }
+        data["scriptPubKey"] = decode_scriptpubkey(self.script)
         return data
 
 
