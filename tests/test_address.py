@@ -168,12 +168,12 @@ class TestBech32(unittest.TestCase):
 class TestNet(unittest.TestCase):
 
     def setUp(self):
-        import btctools.network
-        btctools.network.current_network = btctools.network.NETWORK.TEST
+        import os
+        os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
     def tearDown(self):
-        import btctools.network
-        btctools.network.current_network = btctools.network.NETWORK.MAIN
+        import os
+        os.environ['CRYPTOTOOLS_NETWORK'] = 'main'
 
     def test_address_type(self):
         self.assertEqual(address_type('mgxVT9fzHwYDsgEGJSZekKgYbAyrBkqdpi'), ADDRESS.P2PKH)

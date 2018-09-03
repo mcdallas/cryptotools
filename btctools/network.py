@@ -9,7 +9,9 @@ class NETWORK(Enum):
     TEST = 'test'
 
 
-current_network = NETWORK(os.environ.get('CRYPTOTOOLS_NETWORK', 'main'))
+def current_network():
+    return NETWORK(os.environ.get('CRYPTOTOOLS_NETWORK', 'main'))
+
 
 main = {
     'hrp': 'bc',
@@ -71,5 +73,5 @@ networks = {
 
 
 def network(attr):
-    net = networks[current_network]
+    net = networks[current_network()]
     return net[attr]

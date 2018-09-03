@@ -195,8 +195,9 @@ class TestHD(unittest.TestCase):
 
     def test_bip49(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0049.mediawiki#Test_vectors"""
-        import btctools.network
-        btctools.network.current_network = btctools.network.NETWORK.TEST
+
+        import os
+        os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
         mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about'
         m = Xprv.from_mnemonic(mnemonic)
@@ -211,7 +212,7 @@ class TestHD(unittest.TestCase):
         self.assertEqual(xprv.to_xpub().key.hex(compressed=True), '03a1af804ac108a8a51782198c2d034b28bf90c8803f5a53f76276fa69a4eae77f')
         self.assertEqual(xprv.key.to_public().to_address('P2WPKH-P2SH'), '2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2')
 
-        btctools.network.current_network = btctools.network.NETWORK.MAIN
+        os.environ['CRYPTOTOOLS_NETWORK'] = 'main'
 
     def test_bip84(self):
         """https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki#test-vectors"""
