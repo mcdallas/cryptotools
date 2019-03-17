@@ -23,24 +23,29 @@ class Point(ECDSA.Point):
 
 
 class PrivateKey(message.Message):
+    _network = None
 
-    def __init__(self, bts):
+    def __init__(self, bts, _network=None):
         assert bytes_to_int(bts) < N, 'Key larger than Curve Order'
         super().__init__(bts)
 
-    @classmethod
-    def random(cls):
-        key = secrets.randbelow(N)
-        return cls.from_int(key)
+        self._network = _network
 
     @classmethod
-    def from_wif(cls, wif: str) -> 'PrivateKey':
+    def random(cls, _network=None):
+        key = secrets.randbelow(N)
+        obj = cls.from_int(key)
+        obj.set_network(_network)
+        return obj
+
+    @classmethod
+    def from_wif(cls, wif: str, _network=None) -> 'PrivateKey':
         from btctools import base58, sha256
         from btctools.network import network
         bts = base58.decode(wif)
         network_byte, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
         assert sha256(sha256(network_byte + key))[:4] == checksum, 'Invalid Checksum'
-        assert network_byte == network('wif'), 'Invalid Network byte'
+        assert network_byte == network('wif', _network), 'Invalid Network byte'
         if key.endswith(b'\x01'):
             key = key[:-1]
             compressed = True  # TODO
@@ -51,14 +56,14 @@ class PrivateKey(message.Message):
     def wif(self, compressed=False) -> str:
         from btctools import base58, sha256
         from btctools.network import network
-        extended = network('wif') + self.bytes() + (b'\x01' if compressed else b'')
+        extended = network('wif', self._network) + self.bytes() + (b'\x01' if compressed else b'')
         hashed = sha256(sha256(extended))
         checksum = hashed[:4]
         return base58.encode(extended + checksum)
 
     def to_public(self) -> 'PublicKey':
         point = CURVE.G * self.int()
-        return PublicKey(point)
+        return PublicKey(point, _network=self._network)
 
     def __repr__(self):
         return f"PrivateKey({self.msg})"
@@ -76,11 +81,20 @@ class PrivateKey(message.Message):
 
         return message.Signature(r=r, s=s)
 
+    def network(self):
+        return self._network
+
+    def set_network(self, _network):
+        self._network = _network
+
 
 class PublicKey:
+    _network = None
 
-    def __init__(self, point: Point):
+    def __init__(self, point: Point, _network=None):
         self.point = point
+
+        self._network = _network
 
     def __eq__(self, other: 'PublicKey') -> bool:
         return self.point == other.point
@@ -89,7 +103,7 @@ class PublicKey:
         return f"PublicKey({self.x}, {self.y})"
 
     @classmethod
-    def decode(cls, key: bytes) -> 'PublicKey':
+    def decode(cls, key: bytes, _network=None) -> 'PublicKey':
         if key.startswith(b'\x04'):        # uncompressed key
             assert len(key) == 65, 'An uncompressed public key must be 65 bytes long'
             x, y = bytes_to_int(key[1:33]), bytes_to_int(key[33:])
@@ -104,7 +118,7 @@ class PublicKey:
             else:
                 assert False, 'Wrong key format'
 
-        return cls(Point(x, y))
+        return cls(Point(x, y), _network=_network)
 
     @classmethod
     def from_private(cls, prv):
@@ -142,6 +156,9 @@ class PublicKey:
             return pubkey_to_address(self.encode(compressed=True), addrtype)
         return pubkey_to_address(self, addrtype)
 
+    def network(self):
+        return self._network
+
 
 def is_pubkey(hexstr):
     try:
@@ -154,8 +171,8 @@ def is_pubkey(hexstr):
     return True
 
 
-def generate_keypair():
-    private = PrivateKey.random()
+def generate_keypair(_network=None):
+    private = PrivateKey.random(_network)
     public = private.to_public()
     return private, public
 

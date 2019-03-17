@@ -42,30 +42,30 @@ def hashed_payload_to_address(payload):
 #     return base58.encode(payload + checksum)
 
 
-def script_to_bech32(script: bytes, witver: int) -> str:
+def script_to_bech32(script: bytes, witver: int, _network=None) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = sha256(script)
-    return bech32.encode(network('hrp'), witver, witprog)
+    return bech32.encode(network('hrp', _network), witver, witprog)
 
 
 def pubkey_to_bech32(pub: PublicKey, witver: int) -> str:
     """https://github.com/bitcoin/bips/blob/master/bip-0141.mediawiki#witness-program"""
     witprog = hash160(pub.encode(compressed=True))
-    return bech32.encode(network('hrp'), witver, witprog)
+    return bech32.encode(network('hrp', pub.network()), witver, witprog)
 
 
 key_to_addr_versions = {
-    ADDRESS.P2PKH: lambda pub: legacy_address(pub, version_byte=network('keyhash')),
+    ADDRESS.P2PKH: lambda pub: legacy_address(pub, version_byte=network('keyhash', pub.network())),
     # 'P2WPKH': partial(pubkey_to_p2wpkh, version_byte=0x06, witver=0x00),  # WAS REPLACED BY BIP 173
-    ADDRESS.P2WPKH_P2SH: lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=True))), version_byte=network('scripthash')),
-    ADDRESS.P2WPKH: partial(pubkey_to_bech32, witver=0x00),
+    ADDRESS.P2WPKH_P2SH: lambda pub: legacy_address(witness_byte(witver=0) + push(hash160(pub.encode(compressed=True))), version_byte=network('scripthash', pub.network())),
+    ADDRESS.P2WPKH: lambda pub: pubkey_to_bech32(pub, witver=0x00),
 }
 
 script_to_addr_versions = {
-    ADDRESS.P2SH: lambda script: legacy_address(script, version_byte=network('scripthash')),
+    ADDRESS.P2SH: lambda script, _network=None: legacy_address(script, version_byte=network('scripthash', _network)),
     # 'P2WSH': partial(script_to_p2wsh, version_byte=0x0A, witver=0x00),  # WAS REPLACED BY BIP 173
-    ADDRESS.P2WSH_P2SH: lambda script: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network('scripthash')),
-    ADDRESS.P2WSH: partial(script_to_bech32, witver=0x00),
+    ADDRESS.P2WSH_P2SH: lambda script, _network=None: legacy_address(witness_byte(witver=0) + push(sha256(script)), version_byte=network('scripthash', _network)),
+    ADDRESS.P2WSH: lambda script, _network=None: script_to_bech32(script, witver=0x00, _network=_network),
 }
 
 
@@ -74,10 +74,10 @@ def pubkey_to_address(pub: PublicKey, version='P2PKH') -> str:
     return converter(pub)
 
 
-def script_to_address(script: bytes, version='P2SH') -> str:
+def script_to_address(script: bytes, version='P2SH', _network=None) -> str:
     """Redeem script to address"""
     converter = script_to_addr_versions[ADDRESS(version.upper())]
-    return converter(script)
+    return converter(script, _network)
 
 
 def address_to_script(addr: str) -> bytes:
@@ -93,38 +93,41 @@ def address_to_script(addr: str) -> bytes:
     return script
 
 
-def get_address(script):
+def get_address(script, _network=None):
     """Extracts the address from a scriptPubkey"""
     script = hex_to_bytes(script) if isinstance(script, str) else script
     stype = get_type(script)
     if stype == TX.P2SH:
         data = script[2:22]
-        version = network('scripthash')
+        version = network('scripthash', _network)
         return hashed_payload_to_address(version + data)
     elif stype == TX.P2PKH:
         data = script[3:23]
-        version = network('keyhash')
+        version = network('keyhash', _network)
         return hashed_payload_to_address(version + data)
     elif stype in (TX.P2WSH, TX.P2WPKH):
         witver = version_byte(script)
         witprog = witness_program(script)
-        return bech32.encode(network('hrp'), witver, witprog)
+        return bech32.encode(network('hrp', _network), witver, witprog)
     elif stype == TX.P2PK:
         return "N/A"
     raise ValidationError(f"Unknown script type: {bytes_to_hex(script)}")
 
 
 class Address:
-    def __init__(self, address):
+    _network = None
+
+    def __init__(self, address, _network=None):
         self.address = address
         self._outputs = None
+        self._network = _network
 
     @property
     def utxos(self):
         if self._outputs is None:
             import urllib.request
             import json
-            url = network('utxo_url').format(address=self.address)
+            url = network('utxo_url', self._network).format(address=self.address)
 
             req = urllib.request.Request(url)
             outputs = []
@@ -191,7 +194,7 @@ class Address:
             scripthash = address[1:-4]
             output.script = OP.HASH160.byte + push(scripthash) + OP.EQUAL.byte
         elif addr_type in (ADDRESS.P2WPKH, ADDRESS.P2WSH):
-            witness_version, witness_program = bech32.decode(network('hrp'), self.address)
+            witness_version, witness_program = bech32.decode(network('hrp', self._network), self.address)
             output.script = OP(bytes_to_int(witness_byte(witness_version))).byte + push(bytes(witness_program))
         else:
             raise ValidationError(f"Cannot create output of type {addr_type}")
@@ -210,7 +213,7 @@ def send(source, to, fee, private):
     raise UpstreamError(result)
 
 
-def address_type(addr):
+def address_type(addr, _network=None):
     if addr.startswith(('1', '2', '3', 'm', 'n')):
         try:
             address = base58.decode(addr).rjust(25, b'\x00')
@@ -223,12 +226,12 @@ def address_type(addr):
         if sha256(sha256(payload))[:4] != checksum:
             raise InvalidAddress(f"{addr} : Invalid checksum") from None
         try:
-            return {network('keyhash'): ADDRESS.P2PKH, network('scripthash'): ADDRESS.P2SH}[version_byte]
+            return {network('keyhash', _network): ADDRESS.P2PKH, network('scripthash', _network): ADDRESS.P2SH}[version_byte]
         except KeyError:
             raise InvalidAddress(f"{addr} : Invalid version byte") from None
-    elif addr.startswith(network('hrp')):
+    elif addr.startswith(network('hrp', _network)):
         try:
-            witness_version, witness_program = bech32.decode(network('hrp'), addr)
+            witness_version, witness_program = bech32.decode(network('hrp', _network), addr)
         except Bech32DecodeError as e:
             raise InvalidAddress(f"{addr} : {e}") from None
 
@@ -244,7 +247,7 @@ def address_type(addr):
         raise InvalidAddress(f"{addr} : Invalid leading character") from None
 
 
-def vanity(prefix: str) -> Tuple[str, str, str]:
+def vanity(prefix: str, _network=None) -> Tuple[str, str, str]:
     """Generate a vanity address starting with the input (excluding the version byte)"""
     not_in_alphabet = {i for i in prefix if i not in base58.ALPHABET}
     assert not not_in_alphabet, f"Characters {not_in_alphabet} are not in alphabet"

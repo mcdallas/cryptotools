@@ -76,7 +76,7 @@ class ExtendedKey:
         return base58.encode(data + checksum)
 
     @classmethod
-    def deserialize(cls, bts: bytes) -> 'ExtendedKey':
+    def deserialize(cls, bts: bytes, _network=None) -> 'ExtendedKey':
 
         def read(n):
             nonlocal bts
@@ -84,10 +84,10 @@ class ExtendedKey:
             return data
 
         net = read(4)
-        is_private = net in network('extended_prv').values()
-        is_public = net in network('extended_pub').values()
+        is_private = net in network('extended_prv', _network).values()
+        is_public = net in network('extended_pub', _network).values()
         assert is_public ^ is_private, f'Invalid network bytes : {bytes_to_hex(net)}'
-        address_lookup = {val: key for key, val in (network('extended_prv') if is_private else network('extended_pub')).items()}
+        address_lookup = {val: key for key, val in (network('extended_prv', _network) if is_private else network('extended_pub', _network)).items()}
         constructor = Xprv if is_private else Xpub
         depth = bytes_to_int(read(1))
         assert depth in range(256), f'Invalid depth : {depth}'
@@ -102,17 +102,17 @@ class ExtendedKey:
 
         code = read(32)
         key = read(33)
-        key = PrivateKey(key) if is_private else PublicKey.decode(key)
+        key = PrivateKey(key, _network=_network) if is_private else PublicKey.decode(key, _network=_network)
         assert not bts, 'Leftover bytes'
         return constructor(key, code, depth=depth, i=i, parent=fingerprint, path=path, addresstype=address_lookup[net])
 
     @classmethod
-    def decode(cls, string: str) -> 'ExtendedKey':
+    def decode(cls, string: str, _network=None) -> 'ExtendedKey':
         bts = base58.decode(string)
         assert len(bts) == 82, f'Invalid length {len(bts)})'
         data, checksum = bts[:78], bts[78:]
         assert sha256(sha256(data)).startswith(checksum), 'Invalid checksum'
-        return cls.deserialize(data)
+        return cls.deserialize(data, _network=_network)
 
     def __eq__(self, other):
         return self.encode() == other.encode()
@@ -138,7 +138,9 @@ class Xprv(ExtendedKey):
             path = self.path + f'/{i - 2**31}h'
         else:
             path = self.path + f'/{i}'
-        return Xprv(PrivateKey.from_int(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path, addresstype=self.type.value)
+        private_key = PrivateKey.from_int(key)
+        private_key.set_network(self.key.network())
+        return Xprv(private_key, ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path, addresstype=self.type.value)
 
     def to_xpub(self) -> 'Xpub':
         return Xpub(self.key.to_public(), self.code, depth=self.depth, i=self.i, parent=self.parent, path=self.path.replace('m', 'M'), addresstype=self.type.value)
@@ -154,13 +156,13 @@ class Xprv(ExtendedKey):
         return self.key.bytes().rjust(33, b'\x00')
 
     def serialize(self):
-        version = network('extended_prv')[self.type]
+        version = network('extended_prv', self.key.network())[self.type]
         depth = int_to_bytes(self.depth)
         child = bytes(4) if self.is_master() else int_to_bytes(self.i).rjust(4, b'\x00')
         return version + depth + self.parent + child + self.code + self.keydata()
 
     @classmethod
-    def from_seed(cls, seed: Union[bytes, str], addresstype='P2PKH') -> 'Xprv':
+    def from_seed(cls, seed: Union[bytes, str], addresstype='P2PKH', _network=None) -> 'Xprv':
         if isinstance(seed, str):
             seed = hex_to_bytes(seed)
         assert 16 <= len(seed) <= 64, 'Seed should be between 128 and 512 bits'
@@ -168,16 +170,16 @@ class Xprv(ExtendedKey):
         I_L, I_R = I[:32], I[32:]
         if bytes_to_int(I_L) == 0 or bytes_to_int(I_L) > CURVE.N:
             raise KeyDerivationError
-        key, code = PrivateKey(I_L), I_R
+        key, code = PrivateKey(I_L, _network=_network), I_R
         return cls(key, code, addresstype=addresstype)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(path={self.path}, key={self.key.wif(compressed=True)})"
 
     @classmethod
-    def from_mnemonic(cls, mnemonic: str, passphrase='', addresstype='P2PKH') -> 'Xprv':
+    def from_mnemonic(cls, mnemonic: str, passphrase='', addresstype='P2PKH', _network=None) -> 'Xprv':
         seed = to_seed(mnemonic=mnemonic, passphrase=passphrase)
-        return cls.from_seed(seed, addresstype=addresstype)
+        return cls.from_seed(seed, addresstype=addresstype, _network=_network)
 
     def address(self, addresstype=None):
         return self.key.to_public().to_address(addresstype or self.type.value, compressed=True)
@@ -201,7 +203,7 @@ class Xpub(ExtendedKey):
         path = self.path + f'/{i}'
 
         # TODO add point at infinity check
-        return Xpub(PublicKey(key), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path, addresstype=self.type.value)
+        return Xpub(PublicKey(key, _network=self.key.network()), ret_code, depth=self.depth + 1, i=i, parent=self.fingerprint(), path=path, addresstype=self.type.value)
 
     def id(self):
         return hash160(self.key.encode(compressed=True))
@@ -210,7 +212,7 @@ class Xpub(ExtendedKey):
         return self.key.encode(compressed=True)
 
     def serialize(self):
-        version = network('extended_pub')[self.type]
+        version = network('extended_pub', self.key.network())[self.type]
         depth = int_to_bytes(self.depth)
         child = bytes(4) if self.is_master() else int_to_bytes(self.i).rjust(4, b'\x00')
         return version + depth + self.parent + child + self.code + self.keydata()

@@ -291,8 +291,9 @@ class Output:
 
 
 class Transaction:
+    _network = None
 
-    def __init__(self, inputs, outputs, version=b'\x01\x00\x00\x00', lock_time=b'\x00\x00\x00\x00'):
+    def __init__(self, inputs, outputs, version=b'\x01\x00\x00\x00', lock_time=b'\x00\x00\x00\x00', _network=None):
         self.inputs = inputs
         self.outputs = outputs
         assert len(version) == 4, 'Invalid Version'
@@ -301,6 +302,8 @@ class Transaction:
         self.version = bytes_to_int(self._version)
         self._lock_time = lock_time[::-1]
         self.lock_time = bytes_to_int(self._lock_time)
+
+        self._network = _network
 
     def __len__(self):
         return len(self.serialize())
@@ -437,14 +440,14 @@ class Transaction:
         return cls.deserialize(hex_to_bytes(hexstring))
 
     @classmethod
-    def get(cls, txhash):
+    def get(cls, txhash, _network=None):
         """Construct a transaction from it's tx id by getting the raw data from blockchain.info"""
         import urllib.request
         from urllib.error import HTTPError
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
 
-        url = network('rawtx_url').format(txid=txhash)
+        url = network('rawtx_url', _network).format(txid=txhash)
         req = urllib.request.Request(url)
         sleep(0.1)
         try:
@@ -557,7 +560,7 @@ class Transaction:
         import urllib.request
         import urllib.parse
 
-        url = network('broadcast_url')
+        url = network('broadcast_url', self._network)
         payload = {'tx': self.hex()}
         data = urllib.parse.urlencode(payload).encode('ascii')
         req = urllib.request.Request(url, data)

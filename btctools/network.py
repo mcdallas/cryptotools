@@ -9,8 +9,11 @@ class NETWORK(Enum):
     TEST = 'test'
 
 
-def current_network():
-    return NETWORK(os.environ.get('CRYPTOTOOLS_NETWORK', 'main'))
+def current_network(_network=None):
+    if not _network:
+        return NETWORK(os.environ.get('CRYPTOTOOLS_NETWORK', 'main'))
+    else:
+        return NETWORK(_network)
 
 
 main = {
@@ -72,6 +75,6 @@ networks = {
 }
 
 
-def network(attr):
-    net = networks[current_network()]
+def network(attr, _network=None):
+    net = networks[current_network(_network)]
     return net[attr]
