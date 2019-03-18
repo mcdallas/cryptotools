@@ -1,5 +1,8 @@
-About this repo [![Build Status](https://travis-ci.org/morvaridio/hd-wallet.svg?branch=master)](https://travis-ci.org/morvaridio/hd-wallet)
+About this repo
 ---------------
+
+.. image:: https://travis-ci.org/morvaridio/hd-wallet.svg?branch=master
+    :target: https://travis-ci.org/morvaridio/hd-wallet
 
 Barebones Python 3.6+ implementation (no dependencies/standard lib only) of some common cryptographic functions for educational purposes.
 Feel free to fork the repo and play around with it. Performance is ..abysmal but otherwise it works fine. Please do not
