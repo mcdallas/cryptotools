@@ -4,4 +4,4 @@ python:
   - "3.7"
 
 install: pip install lxml
-script: ls; python -m unittest
+script: python3 -m unittest
