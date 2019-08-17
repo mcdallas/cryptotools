@@ -11,6 +11,9 @@ class Point:
         assert self.curve == other.curve, 'Cannot add points on different curves'
         return self.curve.point_add(self, other)
 
+    def __sub__(self, other):
+        return self + (other * -1)
+
     def __mul__(self, other: int):
         assert isinstance(other, int), 'Multiplication is only defined between a point and an integer'
         return self.curve.point_mul(self, other)
@@ -45,6 +48,8 @@ class Curve:
         return Point(rx % P, ry % P, curve=self)
 
     def point_mul(self, p, d):
+        d = d % self.N
+
         n = p
         q = None
 
