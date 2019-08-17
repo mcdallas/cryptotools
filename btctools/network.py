@@ -62,7 +62,7 @@ test = {
         ADDRESS.P2WSH_P2SH: b'\x02\x42\x89\xef'  # Upub
     },
     'utxo_url': 'https://testnet.blockchain.info/unspent?active={address}',
-    'rawtx_url': 'https://testnet.blockchain.info/rawtx/{txid}?format=hex',
+    'rawtx_url': 'https://blockstream.info/testnet/api/tx/{txid}/hex',
     'broadcast_url': 'https://testnet.blockchain.info/pushtx'
 }
 
