@@ -1,16 +1,24 @@
+"""
+https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-functions
+"""
+
 import hmac
 import hashlib
 from typing import Union
 
-from cryptotools.btctools import base58
 from cryptotools.ECDSA.secp256k1 import CURVE, PrivateKey, PublicKey
-from cryptotools.transformations import int_to_bytes, bytes_to_int, hex_to_bytes, bytes_to_hex, hash160, sha256
+from cryptotools.btctools import base58
+from cryptotools.btctools.HD import to_seed
+from cryptotools.btctools.address import ADDRESS
 from cryptotools.btctools.network import network
-from . import to_seed
-from ..address import ADDRESS
-
-
-"""https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#child-key-derivation-functions"""
+from cryptotools.transformations import (
+    bytes_to_hex,
+    bytes_to_int,
+    hash160,
+    hex_to_bytes,
+    int_to_bytes,
+    sha256,
+)
 
 KEY = Union[PrivateKey, PublicKey]
 
