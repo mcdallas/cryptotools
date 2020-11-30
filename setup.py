@@ -2,10 +2,12 @@ import pathlib
 import pkg_resources
 from setuptools import setup
 
+from cryptotools import __doc__ as docstring
+
 setup(
     name="cryptotools",
-    version='be7582a',
-    description="Zero dependency implementation of common cryptographic functions for working with cryptocurrency.",
+    version='latest',
+    description=docstring.strip(),
     long_description=(pathlib.Path(__file__).parent / "README.rst").read_text(),
     long_description_content_type="text/x-rst",
     url="https://github.com/mcdallas/cryptotools",
