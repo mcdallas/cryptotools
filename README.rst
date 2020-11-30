@@ -13,7 +13,7 @@ HD Wallets
 
 .. code-block:: Python
 
-    from btctools import Xprv
+    from cryptotools.btctools import Xprv
 
     >>> m = Xprv.from_mnemonic('impulse prize erode winner pupil fun off addict ...')
     >>> m.encode()
@@ -41,7 +41,7 @@ Sign/Verify message:
 
 .. code-block:: Python
 
-    from ECDSA.secp256k1 import generate_keypair, Message
+    from cryptotools.ECDSA.secp256k1 import generate_keypair, Message
 
     >>> private, public = generate_keypair()
 
@@ -56,7 +56,7 @@ Verify a transaction:
 
 .. code-block:: Python
 
-    from btctools import Transaction
+    from cryptotools.btctools import Transaction
 
     tx = Transaction.get('454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214')
 
@@ -79,7 +79,7 @@ Create a transaction and submit it automatically
     import os
     os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
-    from btctools import PrivateKey, send
+    from cryptotools.btctools import PrivateKey, send
 
     key = PrivateKey.from_hex('mysupersecretkey')
 
@@ -94,7 +94,7 @@ Create and broadcast manually
     import os
     os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
-    from btctools import PrivateKey, Address
+    from cryptotools.btctools import PrivateKey, Address
 
     private = PrivateKey.from_hex('mysupersecretkey')
     address = Address('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66')
@@ -121,7 +121,7 @@ Create keys/addresses (including segwit)
 
 .. code-block:: Python
 
-    >>> from btctools import generate_keypair, push, script_to_address, OP
+    >>> from cryptotools.btctools import generate_keypair, push, script_to_address, OP
 
     >>> private, public = generate_keypair()
 
@@ -148,7 +148,7 @@ Create keys/addresses (including segwit)
 
 .. code-block:: Python
 
-    >>> from ECDSA.secp256k1 import CURVE, PrivateKey
+    >>> from cryptotools.ECDSA.secp256k1 import CURVE, PrivateKey
 
     >>> private = PrivateKey.random()
     >>> private.int()
@@ -169,7 +169,7 @@ Vanity address generator
 
 .. code-block:: Python
 
-    >>> from btctools.address import vanity
+    >>> from cryptotools.btctools.address import vanity
 
     >>> private, public, address = vanity('Bob')  # Takes forever
     Found address starting with Bob in 1:17:55 after 80,111 tries
