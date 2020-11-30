@@ -1,4 +1,3 @@
-
 import unittest
 import urllib
 import urllib.request
@@ -6,18 +5,33 @@ import urllib.parse
 import pathlib
 import secrets
 import json
-from lxml import etree
+
+from html.parser import HTMLParser
 from os import urandom
 
-
-from ECDSA.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
-from message import Signature
-from transformations import hex_to_bytes, hex_to_int, bytes_to_hex
-from btctools.HD.bip32 import Xprv, Xpub
-from btctools.HD import to_seed
-from btctools.opcodes import ADDRESS
+from cryptotools.ECDSA.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
+from cryptotools.message import Signature
+from cryptotools.transformations import hex_to_bytes, hex_to_int, bytes_to_hex
+from cryptotools.btctools.HD.bip32 import Xprv, Xpub
+from cryptotools.btctools.HD import to_seed
+from cryptotools.btctools.opcodes import ADDRESS
 
 HERE = pathlib.Path(__file__).parent.absolute()
+
+class HtmlPrivKey(HTMLParser):
+    def __init__(self):
+        self.wif = None
+        self.private = None
+        super().__init__()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'input':
+            attrs = dict(attrs)
+            name, value = attrs.get('name'), attrs.get('value')
+            if name == 'wif' and self.wif is None:
+                self.wif = value
+            if name == 'private2' and self.private is None:
+                self.private = value
 
 
 class TestPubKey(unittest.TestCase):
@@ -34,7 +48,7 @@ class TestPubKey(unittest.TestCase):
 
 class TestPrivKey(unittest.TestCase):
 
-    url = 'http://gobittest.appspot.com/PrivateKey'
+    url = 'https://gobittest.appspot.com/PrivateKey'
 
     def test_wif(self):
 
@@ -43,12 +57,10 @@ class TestPrivKey(unittest.TestCase):
         req = urllib.request.Request(self.url, data)
 
         with urllib.request.urlopen(req) as response:
-            html = response.read()
+            html = HtmlPrivKey()
+            html.feed(response.read().decode('utf-8'))
 
-        tree = etree.HTML(html)
-
-        wif = tree.find('.//input[@name="wif"]').attrib['value']
-        private = tree.find('.//input[@name="private2"]').attrib['value']
+        wif, private = html.wif, html.private
 
         my_private = PrivateKey.from_wif(wif)
         my_wif = PrivateKey.from_hex(private).wif()
