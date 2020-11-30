@@ -6,6 +6,14 @@ Feel free to fork the repo and play around with it. Performance is ..abysmal but
 use this for anything serious because I am not a security expert.
 
 
+Install
+-------
+
+```
+pip install git+https://github.com/mcdallas/cryptotools.git@master#egg=cryptotools
+```
+
+
 Examples
 --------
 
