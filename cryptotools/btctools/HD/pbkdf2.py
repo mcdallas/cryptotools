@@ -34,7 +34,7 @@ import hashlib
 from struct import Struct
 from operator import xor
 from itertools import starmap
-from transformations import bytes_to_hex, str_to_bytes
+from cryptotools.transformations import bytes_to_hex, str_to_bytes
 
 _pack_int = Struct('>I').pack
 

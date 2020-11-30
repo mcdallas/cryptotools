@@ -1,6 +1,6 @@
-from number_theory_stuff import mulinv, random_prime, random_coprime
-import message
-from transformations import *
+from cryptotools.number_theory_stuff import mulinv, random_prime, random_coprime
+from cryptotools import message
+from cryptotools.transformations import *
 
 
 def generate_keypair(bits):
