@@ -148,7 +148,7 @@ Create keys/addresses (including segwit)
     >>> script_to_address(script, 'P2WSH')
     'bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'
 
-    # nested P2WSH into P2SH
+    # nested P2WSH into P2SH -- use with caution
     >>> script_to_address(script, 'P2WSH-P2SH')
     '34eBzenHJEdk5PK9ojuuBZvCRtNhvvysYZ'
 
