@@ -9,9 +9,9 @@ use this for anything serious because I am not a security expert.
 Install
 -------
 
-```
-pip install git+https://github.com/mcdallas/cryptotools.git@master#egg=cryptotools
-```
+.. code-block:: bash
+
+    $ pip install git+https://github.com/mcdallas/cryptotools.git@master#egg=cryptotools
 
 
 Examples
