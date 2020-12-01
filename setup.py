@@ -25,5 +25,8 @@ setup(
         "cryptotools.RSA",
         "cryptotools.btctools",
         "cryptotools.btctools.HD",
-    ]
+    ],
+    package_data={
+        'cryptotools': [ 'btctools/HD/wordlist.txt' ]
+    }
 )
