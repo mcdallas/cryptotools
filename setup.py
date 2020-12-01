@@ -6,7 +6,7 @@ from cryptotools import __doc__ as docstring
 
 setup(
     name="cryptotools",
-    version='latest',
+    version="latest",
     description=docstring.strip(),
     long_description=(pathlib.Path(__file__).parent / "README.rst").read_text(),
     long_description_content_type="text/x-rst",
@@ -19,5 +19,11 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
     ],
-    packages=["cryptotools"]
+    packages=[
+        "cryptotools",
+        "cryptotools.ECDSA",
+        "cryptotools.RSA",
+        "cryptotools.btctools",
+        "cryptotools.btctools.HD",
+    ]
 )
