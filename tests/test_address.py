@@ -18,6 +18,7 @@ class HtmlLegacyAddress(HTMLParser):
         self.public = None
         self.address = None
         super().__init__()
+
     def handle_starttag(self, tag, attrs):
         if tag == 'input':
             attrs = dict(attrs)
