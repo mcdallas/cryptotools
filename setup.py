@@ -6,7 +6,7 @@ from cryptotools import __doc__ as docstring
 
 setup(
     name="cryptotools",
-    version="latest",
+    version="0.1",
     description=docstring.strip(),
     long_description=(pathlib.Path(__file__).parent / "README.rst").read_text(),
     long_description_content_type="text/x-rst",
