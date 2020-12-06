@@ -1,10 +1,11 @@
 import unicodedata
 import hashlib
+
 from pathlib import Path
 from bisect import bisect_left
-from .pbkdf2 import pbkdf2_bin
 
-from transformations import int_to_bin, bin_to_bytes, bytes_to_bin, sha256
+from cryptotools.transformations import int_to_bin, bin_to_bytes, bytes_to_bin, sha256
+from cryptotools.btctools.HD.pbkdf2 import pbkdf2_bin
 
 HERE = Path(__file__).absolute().parent
 
@@ -58,5 +59,3 @@ def to_seed(mnemonic, passphrase=''):
     if not check(mnemonic):
         raise InvalidMnemonic
     return pbkdf2_bin(mnemonic, 'mnemonic' + passphrase, iterations=2048, keylen=64, hashfunc=hashlib.sha512)
-
-

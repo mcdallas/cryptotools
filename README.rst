@@ -6,6 +6,14 @@ Feel free to fork the repo and play around with it. Performance is ..abysmal but
 use this for anything serious because I am not a security expert.
 
 
+Install
+-------
+
+.. code-block:: bash
+
+    $ pip install git+https://github.com/mcdallas/cryptotools.git@master#egg=cryptotools
+
+
 Examples
 --------
 
@@ -13,7 +21,7 @@ HD Wallets
 
 .. code-block:: Python
 
-    from btctools import Xprv
+    from cryptotools.btctools import Xprv
 
     >>> m = Xprv.from_mnemonic('impulse prize erode winner pupil fun off addict ...')
     >>> m.encode()
@@ -41,9 +49,9 @@ Sign/Verify message:
 
 .. code-block:: Python
 
-    from ECDSA.secp256k1 import generate_keypair, Message
+    from cryptotools.ECDSA.secp256k1 import generate_keypair, Message
 
-    >>> private, public = generate_keypair()
+    private, public = generate_keypair()
 
     >>> message = Message.from_str('kinakuta')
     >>> signature = message.sign(private)
@@ -56,15 +64,14 @@ Verify a transaction:
 
 .. code-block:: Python
 
-    from btctools import Transaction
+    from cryptotools.btctools import Transaction
 
     tx = Transaction.get('454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214')
 
     >>> tx
     Transaction(inputs=1, outputs=2)
 
-    tx.outputs
-
+    >>> tx.outputs
     [Output(type=P2SH, value=0.0266 BTC),
      Output(type=P2WSH, value=0.00468 BTC)]
 
@@ -77,12 +84,12 @@ Create a transaction and submit it automatically
 .. code-block:: Python
 
     import os
-    os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
-    from btctools import PrivateKey, send
+    from cryptotools.btctools import PrivateKey, send
 
     key = PrivateKey.from_hex('mysupersecretkey')
 
+    >>> os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
     >>> send(source='n4SbPWR6EmQMsWaQVYYFXiJgjweGKE4XnQ', to={'n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66': 0.46}, fee=0.01, private=key)
     '907b92969cb3a16ddb45591bf2530f177b7f10cef4e62c331596a84f66c3b8c3'  # txid
 
@@ -94,7 +101,7 @@ Create and broadcast manually
     import os
     os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
-    from btctools import PrivateKey, Address
+    from cryptotools.btctools import PrivateKey, Address
 
     private = PrivateKey.from_hex('mysupersecretkey')
     address = Address('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66')
@@ -102,9 +109,9 @@ Create and broadcast manually
     >>> address.balance()
     0.55
 
-    send_to = {'n4SbPWR6EmQMsWaQVYYFXiJgjweGKE4XnQ': 0.1, 'n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66': 0.4}
+    >>> send_to = {'n4SbPWR6EmQMsWaQVYYFXiJgjweGKE4XnQ': 0.1, 'n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66': 0.4}
+    >>> tx = address.send(to=send_to, fee=0.05, private=private)
 
-    tx = address.send(to=send_to, fee=0.05, private=private)
     >>> tx
     Transaction(inputs=1, outputs=2)
 
@@ -121,9 +128,8 @@ Create keys/addresses (including segwit)
 
 .. code-block:: Python
 
-    >>> from btctools import generate_keypair, push, script_to_address, OP
-
-    >>> private, public = generate_keypair()
+    from cryptotools.btctools import generate_keypair, push, script_to_address, OP
+    private, public = generate_keypair()
 
     >>> private.hex()
     'de4f177274d29f88a5805333e10525f5dd41634455dfadc8849b977802481ccd'
@@ -142,15 +148,15 @@ Create keys/addresses (including segwit)
     >>> script_to_address(script, 'P2WSH')
     'bc1q8yh8l8ft3220q328hlapqhflpzy6xvkq6u36mctk8gq5pyxm3rwqv5h5dg'
 
-    # nested P2WSH into P2SH
+    # nested P2WSH into P2SH -- use with caution
     >>> script_to_address(script, 'P2WSH-P2SH')
     '34eBzenHJEdk5PK9ojuuBZvCRtNhvvysYZ'
 
 .. code-block:: Python
 
-    >>> from ECDSA.secp256k1 import CURVE, PrivateKey
+    from cryptotools.ECDSA.secp256k1 import CURVE, PrivateKey
+    private = PrivateKey.random()
 
-    >>> private = PrivateKey.random()
     >>> private.int()
     8034465994996476238286561766373949549982328752707977290709076444881813294372
 
@@ -169,7 +175,7 @@ Vanity address generator
 
 .. code-block:: Python
 
-    >>> from btctools.address import vanity
+    from cryptotools.btctools.address import vanity
 
     >>> private, public, address = vanity('Bob')  # Takes forever
     Found address starting with Bob in 1:17:55 after 80,111 tries
@@ -182,9 +188,8 @@ RSA
 .. code-block:: Python
 
 
-    >>> import RSA
-
-    >>> private, public = RSA.generate_keypair(512)
+    from cryptotools import RSA
+    private, public = RSA.generate_keypair(512)
 
     >>> txt = 'deadbeef'
     >>> message = RSA.Message.from_hex(txt)

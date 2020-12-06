@@ -1,12 +1,12 @@
 import unittest
 import pathlib
 
-from btctools.transaction import Transaction, Output
-from btctools.script import push, serialize
-from btctools.opcodes import SIGHASH, TX
-from ECDSA.secp256k1 import PublicKey, PrivateKey
-from message import Signature
-from transformations import *
+from cryptotools.btctools.transaction import Transaction, Output
+from cryptotools.btctools.script import push, serialize
+from cryptotools.btctools.opcodes import SIGHASH, TX
+from cryptotools.ECDSA.secp256k1 import PublicKey, PrivateKey
+from cryptotools.message import Signature
+from cryptotools.transformations import *
 
 
 ECHO = False
@@ -61,7 +61,7 @@ class TestTransaction(unittest.TestCase):
             '01'  # output count
             '33f5010000000000'  # value (in satoshis)
             '19'  # script length
-            '76a914dd6cce9f255a8cc17bda8ba0373df8e861cb866e88ac'  # scriptPubKey  
+            '76a914dd6cce9f255a8cc17bda8ba0373df8e861cb866e88ac'  # scriptPubKey
             '00000000'  # lock time
         )
 
@@ -368,4 +368,3 @@ def diff(a, b):
         if i != j:
             print(f"diff at index {idx}: {i} vs {j}")
             break
-

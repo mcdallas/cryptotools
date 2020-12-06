@@ -2,18 +2,38 @@ import unittest
 import secrets
 import urllib.request
 import urllib.parse
-from lxml import etree
 
-from btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, ADDRESS
-from btctools.script import push, OP
-from ECDSA.secp256k1 import generate_keypair, PrivateKey, PublicKey
-from transformations import bytes_to_hex, int_to_str
-from btctools import bech32
+from html.parser import HTMLParser
+
+from cryptotools.btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, ADDRESS
+from cryptotools.btctools.script import push, OP
+from cryptotools.ECDSA.secp256k1 import generate_keypair, PrivateKey, PublicKey
+from cryptotools.transformations import bytes_to_hex, int_to_str
+from cryptotools.btctools import bech32
+
+
+class HtmlLegacyAddress(HTMLParser):
+    def __init__(self):
+        self.private = None
+        self.public = None
+        self.address = None
+        super().__init__()
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'input':
+            attrs = dict(attrs)
+            name, value = attrs.get('name'), attrs.get('value')
+            if name == 'private' and self.private is None:
+                self.private = value
+            if name == 'public' and self.public is None:
+                self.public = value
+            if name == 'Base58' and self.address is None:
+                self.address = value
 
 
 class TestLegacyAddress(unittest.TestCase):
 
-    url = 'http://gobittest.appspot.com/Address'
+    url = 'https://gobittest.appspot.com/Address'
 
     def test_p2pkh(self):
         """https://en.bitcoin.it/wiki/Technical_background_of_version_1_Bitcoin_addresses#See_Also"""
@@ -23,13 +43,10 @@ class TestLegacyAddress(unittest.TestCase):
         req = urllib.request.Request(self.url, data)
 
         with urllib.request.urlopen(req) as response:
-            html = response.read()
+            html = HtmlLegacyAddress()
+            html.feed(response.read().decode('utf-8'))
 
-        tree = etree.HTML(html)
-
-        private = tree.find('.//input[@name="private"]').attrib['value']
-        public = tree.find('.//input[@name="public"]').attrib['value']
-        address = tree.find('.//input[@name="Base58"]').attrib['value']
+        private, public, address = html.private, html.public, html.address
 
         my_pubkey = PrivateKey.from_hex(private).to_public()
 
@@ -46,10 +63,10 @@ class TestLegacyAddress(unittest.TestCase):
         req = urllib.request.Request(self.url, data)
 
         with urllib.request.urlopen(req) as response:
-            html = response.read()
+            html = HtmlLegacyAddress()
+            html.feed(response.read().decode('utf-8'))
 
-        tree = etree.HTML(html)
-        address = tree.find('.//input[@name="Base58"]').attrib['value']
+        address = html.address
 
         self.assertEqual(script_to_address(script, 'P2SH'), address)
         self.assertEqual(address_type(address), ADDRESS.P2SH)

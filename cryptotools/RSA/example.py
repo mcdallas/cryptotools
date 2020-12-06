@@ -1,4 +1,4 @@
-import RSA
+from cryptotools import RSA
 
 private, public = RSA.generate_keypair(512)
 
