@@ -6,8 +6,8 @@ from cryptotools.ECDSA.secp256k1 import (
     PublicKey,
     generate_keypair,
 )
-from cryptotools.btctools.HD.bip32 import Xprv, Xpub
-from cryptotools.btctools.address import (
+from cryptotools.BTC.HD.bip32 import Xprv, Xpub
+from cryptotools.BTC.address import (
     Address,
     address_to_script,
     pubkey_to_address,
@@ -15,8 +15,8 @@ from cryptotools.btctools.address import (
     send,
     vanity,
 )
-from cryptotools.btctools.opcodes import SIGHASH, TX, OP
-from cryptotools.btctools.script import (
+from cryptotools.BTC.opcodes import SIGHASH, TX, OP
+from cryptotools.BTC.script import (
     VM,
     asm,
     decode_scriptpubkey,
@@ -25,7 +25,7 @@ from cryptotools.btctools.script import (
     push,
     witness_program,
 )
-from cryptotools.btctools.transaction import Transaction, Output, Input
+from cryptotools.BTC.transaction import Transaction, Output, Input
 from cryptotools.message import Signature
 from cryptotools.transformations import (
     bytes_to_hex,

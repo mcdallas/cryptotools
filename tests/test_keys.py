@@ -12,9 +12,9 @@ from os import urandom
 from cryptotools.ECDSA.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
 from cryptotools.message import Signature
 from cryptotools.transformations import hex_to_bytes, hex_to_int, bytes_to_hex
-from cryptotools.btctools.HD.bip32 import Xprv, Xpub
-from cryptotools.btctools.HD import to_seed
-from cryptotools.btctools.opcodes import ADDRESS
+from cryptotools.BTC.HD.bip32 import Xprv, Xpub
+from cryptotools.BTC.HD import to_seed
+from cryptotools.BTC.opcodes import ADDRESS
 
 HERE = pathlib.Path(__file__).parent.absolute()
 

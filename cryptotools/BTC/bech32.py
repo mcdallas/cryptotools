@@ -21,7 +21,7 @@
 """Reference implementation for Bech32 and segwit addresses - tweaked to provide descriptive errors"""
 
 from typing import Tuple, List
-from cryptotools.btctools.error import Bech32DecodeError
+from cryptotools.BTC.error import Bech32DecodeError
 
 Bytes = List[int]
 

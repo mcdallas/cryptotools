@@ -1,5 +1,5 @@
 from cryptotools.transformations import bytes_to_int, int_to_bytes
-from cryptotools.btctools.error import Base58DecodeError
+from cryptotools.BTC.error import Base58DecodeError
 
 ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 BASE = len(ALPHABET)

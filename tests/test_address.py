@@ -5,11 +5,11 @@ import urllib.parse
 
 from html.parser import HTMLParser
 
-from cryptotools.btctools.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, ADDRESS
-from cryptotools.btctools.script import push, OP
+from cryptotools.BTC.address import pubkey_to_address, script_to_address, hash160, address_to_script, address_type, ADDRESS
+from cryptotools.BTC.script import push, OP
 from cryptotools.ECDSA.secp256k1 import generate_keypair, PrivateKey, PublicKey
 from cryptotools.transformations import bytes_to_hex, int_to_str
-from cryptotools.btctools import bech32
+from cryptotools.BTC import bech32
 
 
 class HtmlLegacyAddress(HTMLParser):

@@ -3,12 +3,12 @@ from datetime import timedelta
 from functools import partial
 from typing import Union, Tuple
 
-from cryptotools.btctools import base58, bech32
-from cryptotools.btctools.script import push, witness_byte, get_type, witness_program, version_byte
-from cryptotools.btctools.opcodes import TX, OP, ADDRESS
-from cryptotools.btctools.network import network, networks
-from cryptotools.btctools.transaction import Output, Transaction
-from cryptotools.btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
+from cryptotools.BTC import base58, bech32
+from cryptotools.BTC.script import push, witness_byte, get_type, witness_program, version_byte
+from cryptotools.BTC.opcodes import TX, OP, ADDRESS
+from cryptotools.BTC.network import network, networks
+from cryptotools.BTC.transaction import Output, Transaction
+from cryptotools.BTC.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
 from cryptotools.ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
 from cryptotools.transformations import hex_to_bytes, bytes_to_hex, bytes_to_int, hash160, sha256, btc_to_satoshi
 

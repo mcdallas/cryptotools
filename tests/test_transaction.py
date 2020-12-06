@@ -1,9 +1,9 @@
 import unittest
 import pathlib
 
-from cryptotools.btctools.transaction import Transaction, Output
-from cryptotools.btctools.script import push, serialize
-from cryptotools.btctools.opcodes import SIGHASH, TX
+from cryptotools.BTC.transaction import Transaction, Output
+from cryptotools.BTC.script import push, serialize
+from cryptotools.BTC.opcodes import SIGHASH, TX
 from cryptotools.ECDSA.secp256k1 import PublicKey, PrivateKey
 from cryptotools.message import Signature
 from cryptotools.transformations import *

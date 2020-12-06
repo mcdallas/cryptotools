@@ -7,10 +7,10 @@ import hashlib
 from typing import Union
 
 from cryptotools.ECDSA.secp256k1 import CURVE, PrivateKey, PublicKey
-from cryptotools.btctools import base58
-from cryptotools.btctools.HD import to_seed
-from cryptotools.btctools.address import ADDRESS
-from cryptotools.btctools.network import network
+from cryptotools.BTC import base58
+from cryptotools.BTC.HD import to_seed
+from cryptotools.BTC.address import ADDRESS
+from cryptotools.BTC.network import network
 from cryptotools.transformations import (
     bytes_to_hex,
     bytes_to_int,

@@ -21,7 +21,7 @@ HD Wallets
 
 .. code-block:: Python
 
-    from cryptotools.btctools import Xprv
+    from cryptotools.BTC import Xprv
 
     >>> m = Xprv.from_mnemonic('impulse prize erode winner pupil fun off addict ...')
     >>> m.encode()
@@ -64,7 +64,7 @@ Verify a transaction:
 
 .. code-block:: Python
 
-    from cryptotools.btctools import Transaction
+    from cryptotools.BTC import Transaction
 
     tx = Transaction.get('454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214')
 
@@ -85,7 +85,7 @@ Create a transaction and submit it automatically
 
     import os
 
-    from cryptotools.btctools import PrivateKey, send
+    from cryptotools.BTC import PrivateKey, send
 
     key = PrivateKey.from_hex('mysupersecretkey')
 
@@ -101,7 +101,7 @@ Create and broadcast manually
     import os
     os.environ['CRYPTOTOOLS_NETWORK'] = 'test'
 
-    from cryptotools.btctools import PrivateKey, Address
+    from cryptotools.BTC import PrivateKey, Address
 
     private = PrivateKey.from_hex('mysupersecretkey')
     address = Address('n2NGrooSecJaiD6ssp4YqFoj9eZ7GrCJ66')
@@ -128,7 +128,7 @@ Create keys/addresses (including segwit)
 
 .. code-block:: Python
 
-    from cryptotools.btctools import generate_keypair, push, script_to_address, OP
+    from cryptotools.BTC import generate_keypair, push, script_to_address, OP
     private, public = generate_keypair()
 
     >>> private.hex()
@@ -175,7 +175,7 @@ Vanity address generator
 
 .. code-block:: Python
 
-    from cryptotools.btctools.address import vanity
+    from cryptotools.BTC.address import vanity
 
     >>> private, public, address = vanity('Bob')  # Takes forever
     Found address starting with Bob in 1:17:55 after 80,111 tries

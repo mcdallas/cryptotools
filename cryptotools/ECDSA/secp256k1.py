@@ -35,8 +35,8 @@ class PrivateKey(message.Message):
 
     @classmethod
     def from_wif(cls, wif: str) -> 'PrivateKey':
-        from cryptotools.btctools import base58, sha256
-        from cryptotools.btctools.network import network
+        from cryptotools.BTC import base58, sha256
+        from cryptotools.BTC.network import network
         bts = base58.decode(wif)
         network_byte, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
         assert sha256(sha256(network_byte + key))[:4] == checksum, 'Invalid Checksum'
@@ -49,8 +49,8 @@ class PrivateKey(message.Message):
         return cls(key)
 
     def wif(self, compressed=False) -> str:
-        from cryptotools.btctools import base58, sha256
-        from cryptotools.btctools.network import network
+        from cryptotools.BTC import base58, sha256
+        from cryptotools.BTC.network import network
         extended = network('wif') + self.bytes() + (b'\x01' if compressed else b'')
         hashed = sha256(sha256(extended))
         checksum = hashed[:4]
@@ -137,7 +137,7 @@ class PublicKey:
         return bytes_to_hex(self.encode(compressed=compressed))
 
     def to_address(self, addrtype: str, compressed=False) -> str:
-        from cryptotools.btctools.address import pubkey_to_address
+        from cryptotools.BTC.address import pubkey_to_address
         if compressed is True and addrtype == 'P2PKH':
             return pubkey_to_address(self.encode(compressed=True), addrtype)
         return pubkey_to_address(self, addrtype)

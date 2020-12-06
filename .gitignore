@@ -153,11 +153,14 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# vscode settings
+.vscode/
+
 # mypy
 .mypy_cache/
 .idea/
 ECDS/__pycache__/
 RSA/__pycache__/
-btctools/__pycache__/
+BTC/__pycache__/
 tests/__pycache__/
 !/.gitignore

@@ -23,10 +23,10 @@ setup(
         "cryptotools",
         "cryptotools.ECDSA",
         "cryptotools.RSA",
-        "cryptotools.btctools",
-        "cryptotools.btctools.HD",
+        "cryptotools.BTC",
+        "cryptotools.BTC.HD",
     ],
     package_data={
-        'cryptotools': [ 'btctools/HD/wordlist.txt' ]
+        'cryptotools': [ 'BTC/HD/wordlist.txt' ]
     }
 )

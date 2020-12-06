@@ -5,7 +5,7 @@ from pathlib import Path
 from bisect import bisect_left
 
 from cryptotools.transformations import int_to_bin, bin_to_bytes, bytes_to_bin, sha256
-from cryptotools.btctools.HD.pbkdf2 import pbkdf2_bin
+from cryptotools.BTC.HD.pbkdf2 import pbkdf2_bin
 
 HERE = Path(__file__).absolute().parent
 
