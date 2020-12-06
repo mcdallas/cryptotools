@@ -3,6 +3,8 @@ from hashlib import sha256 as hasher
 from cryptotools.transformations import *
 
 
+__all__ = ['Message', 'is_signature', 'verify_openssl']
+
 class Message:
     """Basic data class with useful constructors and methods"""
 

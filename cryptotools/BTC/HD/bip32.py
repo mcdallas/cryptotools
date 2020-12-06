@@ -8,7 +8,7 @@ from typing import Union
 
 from cryptotools.ECDSA.secp256k1 import CURVE, PrivateKey, PublicKey
 from cryptotools.BTC import base58
-from cryptotools.BTC.HD import to_seed
+from cryptotools.BTC.HD.mnemonic import to_seed
 from cryptotools.BTC.address import ADDRESS
 from cryptotools.BTC.network import network
 from cryptotools.transformations import (

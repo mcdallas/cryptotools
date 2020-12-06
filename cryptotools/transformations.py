@@ -2,6 +2,13 @@
 
 import hashlib
 
+__all__ = [
+    'sha256', 'ripemd160', 'hash160', 'bytes_to_int', 'int_to_bytes', 'str_to_bytes', 'str_to_int',
+    'int_to_str', 'bytes_to_str', 'int_to_hex', 'hex_to_int', 'bytes_to_hex', 'hex_to_bytes', 
+    'str_to_hex', 'hex_to_str', 'int_to_bin', 'bin_to_int', 'bin_to_bytes', 'bytes_to_bin',
+    'btc_to_satoshi'
+]
+
 sha256 = lambda x: hashlib.sha256(x).digest()
 ripemd160 = lambda x: hashlib.new('ripemd160', x).digest()
 hash160 = lambda x: ripemd160(sha256(x))

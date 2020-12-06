@@ -17,4 +17,4 @@ message = RSA.Message.from_str('kinakuta')
 signature = message.sign(private)
 assert message.verify(signature, public)
 
-print('It works!')
+# print('It works!')
