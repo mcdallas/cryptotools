@@ -1,5 +1,5 @@
 from enum import Enum, unique
-from transformations import int_to_bytes
+from cryptotools.transformations import int_to_bytes
 
 
 @unique

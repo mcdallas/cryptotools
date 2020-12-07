@@ -1,9 +1,9 @@
 import secrets
-import message
 
-import ECDSA
-from number_theory_stuff import mulinv, modsqrt
-from transformations import int_to_bytes, bytes_to_int, hex_to_int, bytes_to_hex, hex_to_bytes
+from cryptotools import message
+from cryptotools import ECDSA
+from cryptotools.number_theory_stuff import mulinv, modsqrt
+from cryptotools.transformations import int_to_bytes, bytes_to_int, hex_to_int, bytes_to_hex, hex_to_bytes
 
 P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 
@@ -35,8 +35,8 @@ class PrivateKey(message.Message):
 
     @classmethod
     def from_wif(cls, wif: str) -> 'PrivateKey':
-        from btctools import base58, sha256
-        from btctools.network import network
+        from cryptotools.BTC import base58, sha256
+        from cryptotools.BTC.network import network
         bts = base58.decode(wif)
         network_byte, key, checksum = bts[0:1], bts[1:-4], bts[-4:]
         assert sha256(sha256(network_byte + key))[:4] == checksum, 'Invalid Checksum'
@@ -49,8 +49,8 @@ class PrivateKey(message.Message):
         return cls(key)
 
     def wif(self, compressed=False) -> str:
-        from btctools import base58, sha256
-        from btctools.network import network
+        from cryptotools.BTC import base58, sha256
+        from cryptotools.BTC.network import network
         extended = network('wif') + self.bytes() + (b'\x01' if compressed else b'')
         hashed = sha256(sha256(extended))
         checksum = hashed[:4]
@@ -137,7 +137,7 @@ class PublicKey:
         return bytes_to_hex(self.encode(compressed=compressed))
 
     def to_address(self, addrtype: str, compressed=False) -> str:
-        from btctools.address import pubkey_to_address
+        from cryptotools.BTC.address import pubkey_to_address
         if compressed is True and addrtype == 'P2PKH':
             return pubkey_to_address(self.encode(compressed=True), addrtype)
         return pubkey_to_address(self, addrtype)
@@ -189,4 +189,3 @@ class Message(message.Message):
 
         point = CURVE.G * u1 + public.point * u2
         return r % N == point.x % N
-

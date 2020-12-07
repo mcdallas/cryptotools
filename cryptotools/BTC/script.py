@@ -1,10 +1,10 @@
 from functools import partial
 from copy import copy, deepcopy
-from ECDSA.secp256k1 import PublicKey
-from message import Signature
-from transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hex_to_bytes, hash160, sha256
-from btctools.opcodes import OP, SIGHASH, TX
-from btctools.error import ScriptValidationError
+from cryptotools.ECDSA.secp256k1 import PublicKey
+from cryptotools.message import Signature
+from cryptotools.transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hex_to_bytes, hash160, sha256
+from cryptotools.BTC.opcodes import OP, SIGHASH, TX
+from cryptotools.BTC.error import ScriptValidationError
 
 
 def op_push(i: int) -> bytes:
@@ -138,7 +138,7 @@ def get_type(script):
 
 
 def decode_scriptpubkey(script):
-    from btctools.address import get_address
+    from cryptotools.BTC.address import get_address
     return {
         "hex": bytes_to_hex(script) if isinstance(script, bytes) else script,
         "asm": asm(script),

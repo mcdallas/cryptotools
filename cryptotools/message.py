@@ -1,7 +1,9 @@
 import base64
 from hashlib import sha256 as hasher
-from transformations import *
+from cryptotools.transformations import *
 
+
+__all__ = ['Message', 'is_signature', 'verify_openssl']
 
 class Message:
     """Basic data class with useful constructors and methods"""
@@ -73,7 +75,7 @@ class Signature:
 
         if force_low_s:
             # https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki#low-s-values-in-signatures
-            from ECDSA.secp256k1 import N
+            from cryptotools.ECDSA.secp256k1 import N
             self.s = s if s <= N // 2 else N - s
         else:
             self.s = s
@@ -118,7 +120,7 @@ class Signature:
         return b'\x30' + len_sig + b'\x02' + len_r + r + b'\x02' + len_s + s
 
     def verify_hash(self, hash, pubkey):
-        from ECDSA.secp256k1 import N, mulinv, CURVE
+        from cryptotools.ECDSA.secp256k1 import N, mulinv, CURVE
         if not (1 <= self.r < N and 1 <= self.s < N):
             return False
 

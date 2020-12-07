@@ -3,14 +3,14 @@ from datetime import timedelta
 from functools import partial
 from typing import Union, Tuple
 
-from btctools import base58, bech32
-from btctools.script import push, witness_byte, get_type, witness_program, version_byte
-from btctools.opcodes import TX, OP, ADDRESS
-from btctools.network import network, networks
-from btctools.transaction import Output, Transaction
-from btctools.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
-from ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
-from transformations import hex_to_bytes, bytes_to_hex, bytes_to_int, hash160, sha256, btc_to_satoshi
+from cryptotools.BTC import base58, bech32
+from cryptotools.BTC.script import push, witness_byte, get_type, witness_program, version_byte
+from cryptotools.BTC.opcodes import TX, OP, ADDRESS
+from cryptotools.BTC.network import network, networks
+from cryptotools.BTC.transaction import Output, Transaction
+from cryptotools.BTC.error import ValidationError, InvalidAddress, Bech32DecodeError, Base58DecodeError, UpstreamError, HTTPError
+from cryptotools.ECDSA.secp256k1 import generate_keypair, PublicKey, PrivateKey
+from cryptotools.transformations import hex_to_bytes, bytes_to_hex, bytes_to_int, hash160, sha256, btc_to_satoshi
 
 
 def legacy_address(pub_or_script: Union[bytes, PublicKey], version_byte: bytes) -> str:
@@ -258,5 +258,3 @@ def vanity(prefix: str) -> Tuple[str, str, str]:
             duration = timedelta(seconds=round(time() - start))
             print(f"Found address starting with {prefix} in {duration} after {counter:,} tries")
             return private.hex(), public.hex(), address
-
-

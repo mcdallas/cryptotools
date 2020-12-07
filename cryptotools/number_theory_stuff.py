@@ -2,6 +2,7 @@ import random
 import secrets
 from math import gcd
 
+__all__ = ['miller_rabin', 'random_prime', 'random_coprime', 'xgcd', 'mulinv', 'legendre', 'modsqrt']
 
 def miller_rabin(n, runs=40):
     # Implementation uses the Miller-Rabin Primality Test
