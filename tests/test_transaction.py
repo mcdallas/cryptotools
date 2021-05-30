@@ -9,7 +9,7 @@ from cryptotools.message import Signature
 from cryptotools.transformations import *
 
 
-ECHO = True
+ECHO = False
 HERE = pathlib.Path(__file__).parent.absolute()
 
 

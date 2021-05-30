@@ -152,7 +152,7 @@ def is_signature(hexstr):
             Signature.decode(hexstr)
         else:
             Signature.from_hex(hexstr)
-    except (AssertionError, IndexError):
+    except (AssertionError, IndexError, ValueError):
         return False
     return True
 
