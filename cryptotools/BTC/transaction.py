@@ -193,6 +193,11 @@ class Input:
         self.script = b''
         self.witness = tuple()
 
+    def redeem(self):
+        if self.type() != 'P2SH':
+            return None
+        return hex_to_bytes(self.asm().split()[-1])
+
     def json(self):
         result = {
             "txid": bytes_to_hex(self.output),
@@ -204,6 +209,15 @@ class Input:
         if self.segwit:
             result['witness'] = [bytes_to_hex(wit) for wit in self.witness]
         result["sequence"] = self.sequence
+
+        try:
+            redeem = bytes_to_hex(self.redeem())
+
+            result['scriptSig']['redeem'] = redeem
+            result['scriptSig']['redeem_asm'] = asm(redeem)
+        except Exception:
+            pass
+
         return result
 
 

@@ -102,6 +102,15 @@ def asm(script):
         op = OP(byte)
         if byte in range(1, 76):
             results.append(bytes_to_hex(read(byte)))
+        elif byte == 76:
+            bytes_to_read = bytes_to_int(read(1))
+            results.append(bytes_to_hex(read(bytes_to_read)))
+        elif byte == 77:
+            bytes_to_read = bytes_to_int(read(2))
+            results.append(bytes_to_hex(read(bytes_to_read)))
+        elif byte == 78:
+            bytes_to_read = bytes_to_int(read(4))
+            results.append(bytes_to_hex(read(bytes_to_read)))
         else:
             results.append(str(op))
 
@@ -397,3 +406,15 @@ class VM:
     def OP_CHECKMULTISIGVERIFY(self):
         self.op(OP.CHECHMULTISIG)
         self.op(OP.VERIFY)
+
+    def OP_PUSHDATA1(self):
+        bytes_to_push = bytes_to_int(self.read(1))
+        self.push(self.read(bytes_to_push))
+
+    def OP_PUSHDATA2(self):
+        bytes_to_push = bytes_to_int(self.read(2))
+        self.push(self.read(bytes_to_push))
+
+    def OP_PUSHDATA4(self):
+        bytes_to_push = bytes_to_int(self.read(4))
+        self.push(self.read(bytes_to_push))
