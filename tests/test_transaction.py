@@ -9,7 +9,7 @@ from cryptotools.message import Signature
 from cryptotools.transformations import *
 
 
-ECHO = False
+ECHO = True
 HERE = pathlib.Path(__file__).parent.absolute()
 
 
@@ -183,6 +183,7 @@ class TestTransaction(unittest.TestCase):
             'a8d60051745755be5b13ba3ecedc1540fbb66e95ab15e76b4d871fd7c2b68794',  # segwit
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
+            '001bf3d87e417c63eee64bd466d0a6eec9770a3b336368062e9db730cf5db922',  # Spends P2SH multisig
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
             'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b',  # 24 inputs 7 outputs
             '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214',  # sends to P2SH and P2WSH
@@ -206,6 +207,7 @@ class TestTransaction(unittest.TestCase):
             'fff2525b8931402dd09222c50775608f75787bd2b87e56995a7bdd30f79702c4',
             'ee475443f1fbfff84ffba43ba092a70d291df233bd1428f3d09f7bd1a6054a1f',
             '7edb32d4ffd7a385b763c7a8e56b6358bcd729e747290624e18acdbe6209fc45',  # 1-of-1 multisig
+            '001bf3d87e417c63eee64bd466d0a6eec9770a3b336368062e9db730cf5db922',  # Spends P2SH 2-of-3 multisig
             '5a0ce1166ff8e6800416b1aa25f1577e233f230bd21204a6505fa6ee5a9c5fc6',
             'ef27d32f7f0c645daec3071c203399783555d84cfe92bfe61583a464a260df0b',  # 24 inputs 7 outputs
             '454e575aa1ed4427985a9732d753b37dc711675eb7c977637b1eea7f600ed214',  # sends to P2SH and P2WSH
