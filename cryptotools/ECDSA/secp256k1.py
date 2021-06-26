@@ -90,6 +90,8 @@ class PublicKey:
 
     @classmethod
     def decode(cls, key: bytes) -> 'PublicKey':
+        if len(key) == 32:                 # compact key with implicit y coordinate
+            key = b'\x02' + key
         if key.startswith(b'\x04'):        # uncompressed key
             assert len(key) == 65, 'An uncompressed public key must be 65 bytes long'
             x, y = bytes_to_int(key[1:33]), bytes_to_int(key[33:])
@@ -103,7 +105,6 @@ class PublicKey:
                 y = root if root % 2 == 0 else -root % P
             else:
                 assert False, 'Wrong key format'
-
         return cls(Point(x, y))
 
     @classmethod
@@ -125,7 +126,9 @@ class PublicKey:
         """Y coordinate of the (X, Y) point"""
         return self.point.y
 
-    def encode(self, compressed=False) -> bytes:
+    def encode(self, compressed=False, compact=False) -> bytes:
+        if compact:
+            return int_to_bytes(self.x).rjust(32, b'\x00')
         if compressed:
             if self.y & 1:  # odd root
                 return b'\x03' + int_to_bytes(self.x).rjust(32, b'\x00')
@@ -133,8 +136,8 @@ class PublicKey:
                 return b'\x02' + int_to_bytes(self.x).rjust(32, b'\x00')
         return b'\x04' + int_to_bytes(self.x).rjust(32, b'\x00') + int_to_bytes(self.y).rjust(32, b'\x00')
 
-    def hex(self, compressed=False) -> str:
-        return bytes_to_hex(self.encode(compressed=compressed))
+    def hex(self, compressed=False, compact=False) -> str:
+        return bytes_to_hex(self.encode(compressed=compressed, compact=compact))
 
     def to_address(self, addrtype: str, compressed=False) -> str:
         from cryptotools.BTC.address import pubkey_to_address
