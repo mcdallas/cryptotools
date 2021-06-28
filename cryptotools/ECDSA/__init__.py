@@ -1,5 +1,6 @@
+__all__ = ['Curve']
 
-class Point:
+class AbstractPoint:
 
     def __init__(self, x, y, curve=None):
         self.x = x
@@ -25,15 +26,24 @@ class Point:
         return self.x % self.curve.P == other.x % self.curve.P and self.y % self.curve.P == other.y % self.curve.P
 
 
+
 class Curve:
+
+    Point = AbstractPoint
 
     def __init__(self, P, a, b, G, N, name):
         self.P = P
         self.a = a
         self.b = b
-        self.G = Point(*G, self)
+        self.__G = G
         self.N = N
         self.name = name
+
+    @property
+    def G(self):
+        if not hasattr(self, '_G'):
+            self._G = self.Point(*self.__G)
+        return self._G
 
     def point_add(self, p, q):
         """https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Point_addition"""
@@ -45,7 +55,7 @@ class Curve:
 
         rx = lam ** 2 - p.x - q.x
         ry = lam * (p.x - rx) - p.y
-        return Point(rx % P, ry % P, curve=self)
+        return self.Point(rx % P, ry % P)
 
     def point_mul(self, p, d):
         d = d % self.N
@@ -69,5 +79,6 @@ class Curve:
     def f(self, x):
         """Compute y**2 = x^3 + ax + b in field FP"""
         return (x ** 3 + self.a * x + self.b) % self.P
+
 
 

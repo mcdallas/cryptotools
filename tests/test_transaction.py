@@ -4,8 +4,7 @@ import pathlib
 from cryptotools.BTC.transaction import Transaction, Output
 from cryptotools.BTC.script import push, serialize
 from cryptotools.BTC.opcodes import SIGHASH, TX
-from cryptotools.ECDSA.secp256k1 import PublicKey, PrivateKey
-from cryptotools.message import Signature
+from cryptotools.ECDSA.secp256k1 import PublicKey, PrivateKey, Signature
 from cryptotools.transformations import *
 
 

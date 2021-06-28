@@ -5,12 +5,12 @@ import urllib.parse
 import pathlib
 import secrets
 import json
+import csv
 
 from html.parser import HTMLParser
 from os import urandom
 
-from cryptotools.ECDSA.secp256k1 import PrivateKey, PublicKey, generate_keypair, Message, CURVE
-from cryptotools.message import Signature
+from cryptotools.ECDSA.secp256k1 import PrivateKey, PublicKey, Schnorr, generate_keypair, Message, CURVE, Signature
 from cryptotools.transformations import hex_to_bytes, hex_to_int, bytes_to_hex
 from cryptotools.BTC.HD.bip32 import Xprv, Xpub
 from cryptotools.BTC.HD import to_seed
@@ -120,6 +120,52 @@ class TestSignature(unittest.TestCase):
         sig = Signature(secrets.randbelow(10**8), secrets.randbelow(10**8))
         self.assertEqual(sig, Signature.decode(sig.encode()))
 
+
+class TestSchnorr(unittest.TestCase):
+
+    def setUp(self) -> None:
+        self.vectors = []
+        with open(HERE / 'vectors' / 'schnorr.csv', newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            reader.__next__()
+            for row in reader:
+                (index, seckey_hex, pubkey_hex, aux_rand_hex, msg_hex, sig_hex, result_str, comment) = row
+                
+
+                msg = Message.from_hex(msg_hex)
+                result = result_str == 'TRUE'
+                
+                aux = hex_to_bytes(aux_rand_hex)
+                self.vectors.append({'index': index, 'pub': pubkey_hex, 'msg': msg, 'sig': sig_hex, 'result': result, 'prv': seckey_hex, 'aux': aux, 'comment': comment})
+    
+    def test_encoding(self):
+        for vector in self.vectors:
+            prv_hex = vector['prv']
+            if not prv_hex:
+                continue
+
+            prv = PrivateKey.from_hex(prv_hex)
+            pubkey_actual = prv.to_public()
+            pubkey = PublicKey.from_hex(vector['pub'])
+
+            self.assertEqual(pubkey_actual.hex(compact=True), pubkey.hex(compact=True))
+
+            msg = vector['msg']
+            aux = vector['aux']
+            signature = msg.sign_schnorr(prv, aux=aux)
+            self.assertEqual(signature.hex(), vector['sig'].lower())
+
+    def test_verification(self):
+        for vector in self.vectors:
+            
+            try:
+                sig = Schnorr.from_hex(vector['sig'])
+                pubkey = PublicKey.from_hex(vector['pub'])
+                result = vector['msg'].verify(signature=sig, public=pubkey)
+            except AssertionError:
+                result = False
+            
+            self.assertEqual(result, vector['result'])
 
 class TestHD(unittest.TestCase):
     """https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#test-vectors"""

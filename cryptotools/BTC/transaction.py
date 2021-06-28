@@ -3,12 +3,11 @@ from collections import deque
 from time import sleep
 
 from cryptotools.transformations import bytes_to_int, bytes_to_hex, hex_to_bytes, sha256
-from cryptotools.message import is_signature
 from cryptotools.BTC.opcodes import SIGHASH, TX, OP
 from cryptotools.BTC.network import network
 from cryptotools.BTC.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush, get_type, decode_scriptpubkey
 from cryptotools.BTC.error import ValidationError, SerializationError, SigningError, UpstreamError, HTTPError
-from cryptotools.ECDSA.secp256k1 import is_pubkey
+from cryptotools.ECDSA.secp256k1 import is_pubkey, is_signature
 
 
 concat = b''.join

@@ -14,12 +14,14 @@ ripemd160 = lambda x: hashlib.new('ripemd160', x).digest()
 hash160 = lambda x: ripemd160(sha256(x))
 
 
+
 def bytes_to_int(bts):
     return int.from_bytes(bts, 'big')
 
 
-def int_to_bytes(i):
-    length = max(1, (i.bit_length() + 7) // 8)
+def int_to_bytes(i, length=None):
+    if not length:
+        length = max(1, (i.bit_length() + 7) // 8)
     return i.to_bytes(length, 'big')
 
 
@@ -83,3 +85,9 @@ def btc_to_satoshi(value: float):
     value = float(value * 10**8)
     assert value.is_integer(), 'The smallest denomination is 1 satoshi or 10^-8 BTC'
     return int(value)
+
+def hashtag(tag: bytes, x: bytes) -> bytes:
+    return sha256(sha256(tag) + sha256(tag) + x)
+
+def bytewise_xor(x: bytes, y: bytes) -> bytes:
+    return bytes(a ^ b for (a, b) in zip(x, y))

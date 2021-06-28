@@ -1,7 +1,6 @@
 from functools import partial
 from copy import copy, deepcopy
-from cryptotools.ECDSA.secp256k1 import PublicKey
-from cryptotools.message import Signature
+from cryptotools.ECDSA.secp256k1 import PublicKey, Signature
 from cryptotools.transformations import bytes_to_int, int_to_bytes, bytes_to_hex, hex_to_bytes, hash160, sha256
 from cryptotools.BTC.opcodes import OP, SIGHASH, TX
 from cryptotools.BTC.error import ScriptValidationError

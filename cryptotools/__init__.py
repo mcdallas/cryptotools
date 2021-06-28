@@ -7,10 +7,8 @@ import pkgutil
 from .BTC import *
 from .BTC.HD import *
 from .ECDSA import *
-from .RSA import *
 from .transformations import *
 from .number_theory_stuff import *
-from .message import *
 
 __all__ = []
 
