@@ -352,6 +352,9 @@ class Message(message.Message):
         if r >= CURVE.P:
             return False
 
+        if P.is_inf():
+            return None
+
         s = signature.s
         if s >= CURVE.N:
             return False
@@ -360,6 +363,8 @@ class Message(message.Message):
         e = bytes_to_int(e) % CURVE.N
 
         R = CURVE.G * s - P * e
+        if R.is_inf():
+            return False
         if not has_even_y(R):
             return False
         if R.x != r:

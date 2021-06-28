@@ -74,6 +74,7 @@ class Curve:
         return self.Point(rx % P, ry % P)
 
     def point_mul(self, P: POINT, d: int):
+        d = d % self.N
         R = INF
         for i in range(256):
             if (d >> i) & 1:
