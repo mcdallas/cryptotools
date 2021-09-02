@@ -397,7 +397,7 @@ class VM:
                 valid = sig.verify_hash(sighash, pub)
                 if valid:
                     valid_signatures.append(valid)
-                    keys = keys.remove(pub) # Drop public key, to avoid allowing multiple signatures with same key
+                    keys.remove(pub) # Drop public key, to avoid allowing multiple signatures with same key
                     break
             else:
                 valid_signatures.append(False)
