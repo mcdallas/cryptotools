@@ -45,19 +45,38 @@ HD Wallets
     'bc1qjnx8cq32z2t72tsmuwql3wz22lywlpcm3w52lk'
 
 
+BIP39 checksum
+
+Say you lost the first of your 12 mnemonic words and you want to filter out the possible mnemonics from 2048 to 128 by veryfing the checksum
+
+.. code-block:: Python
+
+    from cryptotools.BTC.HD import check, WORDS
+
+    phrase = "{x} decrease enjoy credit fold prepare school midnight flower wrong false already"
+
+    for word in WORDS:
+        mnemonic = phrase.format(x=word)
+        if check(mnemonic):
+            print(mnemonic)
+
+
 Sign/Verify message:
 
 .. code-block:: Python
 
+    import secrets
     from cryptotools.ECDSA.secp256k1 import generate_keypair, Message
 
     private, public = generate_keypair()
 
-    >>> message = Message.from_str('kinakuta')
-    >>> signature = message.sign(private)
-    >>> message.verify(signature, public)
+    >>> message = Message(secrets.token_bytes(32))
+    >>> sig1 = message.sign(private)          # ECDSA
+    >>> sig2 = message.sign_schnorr(private)  # Schnorr
+    >>> message.verify(sig1, public)
     True
-
+    >>> message.verify(sig2, public)
+    True
 
 
 Verify a transaction:
@@ -171,44 +190,32 @@ Create keys/addresses (including segwit)
     'bc1qh2egksgfejqpktc3kkdtuqqrukrpzzp9lr0phn'
 
 
-Vanity address generator
+Configuration
+--------
 
-.. code-block:: Python
+By default the library communicates with the bitcoin network (for fetching transactions) via a block 
+explorer but as an alternative you can use a bitcoin node via it's RPC interface. Just set the following 
+enviromental variables
 
-    from cryptotools.BTC.address import vanity
+.. code-block:: bash
 
-    >>> private, public, address = vanity('Bob')  # Takes forever
-    Found address starting with Bob in 1:17:55 after 80,111 tries
+    CRYPTOTOOLS_BACKEND=rpc
+    CRYPTOTOOLS_BACKEND=localhost
+    CRYPTOTOOLS_RPC_PORT=8332
 
+and optionally
 
+.. code-block:: bash
 
-
-RSA
-
-.. code-block:: Python
-
-
-    from cryptotools import RSA
-    private, public = RSA.generate_keypair(512)
-
-    >>> txt = 'deadbeef'
-    >>> message = RSA.Message.from_hex(txt)
-    >>> message
-    b'\xde\xad\xbe\xef'
+    CRYPTOTOOLS_RPC_USER=myuser
+    CRYPTOTOOLS_RPC_PW=mypassword
 
 
-    >>> message.encrypt(public)
-    >>> message
-    b'\x05\xe3q\x92\x1c=)\xaev\xe8\x8d\x8c\x9f\x8d\xde\x17\xdc\x95y\x1e\x90N\xf1A\x816\xb7|z\x83...'
+to switch the network to Testnet set
 
-    >>> message.decrypt(private)
-    >>> message.hex() == txt
-    True
+.. code-block:: bash
 
-    >>> message.encrypt(private)
-    >>> message.decrypt(public)
-    >>> message.hex() == txt
-    True
+    CRYPTOTOOLS_NETWORK=test
 
 
 to run tests
