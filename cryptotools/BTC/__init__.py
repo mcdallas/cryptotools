@@ -5,6 +5,10 @@ from cryptotools.ECDSA.secp256k1 import (
     PrivateKey,
     PublicKey,
     generate_keypair,
+    Signature, 
+    Schnorr, 
+    is_signature, 
+    verify_openssl
 )
 from cryptotools.BTC.HD.bip32 import Xprv, Xpub
 from cryptotools.BTC.address import (
@@ -26,7 +30,6 @@ from cryptotools.BTC.script import (
     witness_program,
 )
 from cryptotools.BTC.transaction import Transaction, Output, Input
-from cryptotools.message import Signature
 from cryptotools.transformations import (
     bytes_to_hex,
     bytes_to_int,
@@ -57,6 +60,9 @@ __all__ = [
     'PublicKey',
     'SIGHASH',
     'Signature',
+    'Schnorr',
+    'is_signature',
+    'verify_openssl',
     'TX',
     'Transaction',
     'VM',
