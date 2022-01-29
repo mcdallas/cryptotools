@@ -39,3 +39,9 @@ class Bech32DecodeError(Exception):
 
 class InvalidAddress(Exception):
     pass
+
+class BackendError(Exception):
+    pass
+
+class NotSupportedError(BackendError):
+    pass
