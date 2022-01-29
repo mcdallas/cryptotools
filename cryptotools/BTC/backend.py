@@ -1,11 +1,13 @@
 import os
 import json
 import base64
+import pathlib
 from enum import Enum
-from typing import Union, Any, List
+from typing import List
 from urllib import request, parse
 from urllib.error import HTTPError
 
+import tests
 from cryptotools.BTC.error import UpstreamError, BackendError, NotSupportedError
 from cryptotools.BTC.network import NETWORK, current_network
 from cryptotools.transformations import hex_to_bytes, btc_to_satoshi
@@ -166,9 +168,37 @@ class RPC(Backend):
         result = self.rpc_call('sendrawtransaction', [rawtx])['result']
         return True
 
+class TestingBackend(Backend):
+    """Backend used for testing to avoid network calls"""
+
+    ECHO = False
+    ROOT_PATH = pathlib.Path(tests.__path__[0])
+    TRANSACTIONS_PATH = ROOT_PATH / 'transactions'
+    CACHE = {}
+
+    def get_tx(self, txhash: str) -> str:
+        if txhash in self.CACHE:
+            if self.ECHO:
+                print(f"\nGetting tx {txhash} from cache")
+            return self.CACHE[txhash]
+        return self._get_tx_from_file(txhash)
+
+    def _get_tx_from_file(self, txhash):
+        filepath = self.TRANSACTIONS_PATH / f"{txhash}.txt"
+        if self.ECHO:
+            print(f"\nGetting tx {txhash} from file")
+        
+        with open(filepath) as f:
+            hexstring = f.read()
+            self.CACHE[txhash] = hexstring
+            return hexstring
+
+
+
 class Backends(Enum):
     BLOCKCHAININFO = 'BLOCKCHAININFO'
     RPC = 'RPC'
+    TEST = 'TEST'
 
     @classmethod
     def from_env(cls):
@@ -181,7 +211,8 @@ def current_backend():
 
     backend =  {
         Backends.BLOCKCHAININFO: BlockchainInfo,
-        Backends.RPC: RPC
+        Backends.RPC: RPC,
+        Backends.TEST: TestingBackend
     }[backend_type]
 
     return backend()

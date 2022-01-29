@@ -1,3 +1,4 @@
+import os
 import unittest
 import pathlib
 
@@ -8,7 +9,6 @@ from cryptotools.ECDSA.secp256k1 import PublicKey, PrivateKey, Signature
 from cryptotools.transformations import *
 
 
-ECHO = False
 HERE = pathlib.Path(__file__).parent.absolute()
 
 
@@ -16,36 +16,9 @@ def tx_path(txhash):
     return HERE / "transactions" / f"{txhash}.txt"
 
 
-old_get = Transaction.get
-tx_cache = {}
-
-
-def get(txhash):
-    if isinstance(txhash, bytes):
-        txhash = bytes_to_hex(txhash)
-    if txhash in tx_cache:
-        if ECHO:
-            print(f"\nGetting tx {txhash} from cache")
-        return Transaction.from_hex(tx_cache[txhash])
-    try:
-        with open(tx_path(txhash)) as f:
-            if ECHO:
-                print(f"\nGetting tx {txhash} from file")
-            hexstring = f.read()
-            tx_cache[txhash] = hexstring
-            return Transaction.from_hex(hexstring)
-    except FileNotFoundError:
-        if ECHO:
-            print(f"\nGetting tx {txhash} from blockchain.info")
-        tx = old_get(txhash)
-        tx_cache[txhash] = tx.hex()
-        return tx
-
-
-Transaction.get = get
-
-
 class TestTransaction(unittest.TestCase):
+    def setUp(self):
+        os.environ['CRYPTOTOOLS_BACKEND'] = 'test'
 
     def test_deserialize(self):
         # https://bchain.info/BTC/tx/96534da2f213367a6d589f18d7d6d1689748cd911f8c33a9aee754a80de166be
