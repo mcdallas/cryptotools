@@ -4,6 +4,7 @@ from functools import partial
 from typing import Union, Tuple
 
 from cryptotools.BTC import base58, bech32
+from cryptotools.BTC.backend import current_backend
 from cryptotools.BTC.script import push, witness_byte, get_type, witness_program, version_byte
 from cryptotools.BTC.opcodes import TX, OP, ADDRESS
 from cryptotools.BTC.network import network, networks
@@ -122,28 +123,8 @@ class Address:
     @property
     def utxos(self):
         if self._outputs is None:
-            import urllib.request
-            import json
-            url = network('utxo_url').format(address=self.address)
-
-            req = urllib.request.Request(url)
-            outputs = []
-            try:
-                with urllib.request.urlopen(req) as resp:
-                    data = json.loads(resp.read().decode())
-            except HTTPError as e:
-                resp = e.read().decode()
-                if resp == 'No free outputs to spend':
-                    self._outputs = []
-                else:
-                    raise UpstreamError(resp)
-            else:
-                for item in data['unspent_outputs']:
-                    out = Output(value=item['value'], script=hex_to_bytes(item['script']))
-                    out.parent_id = hex_to_bytes(item['tx_hash_big_endian'])
-                    out.tx_index = item['tx_output_n']
-                    outputs.append(out)
-                self._outputs = outputs
+            backend = current_backend()
+            self._outputs = backend.get_utxos(self.address)
         return self._outputs
 
     def type(self):

@@ -6,8 +6,9 @@ from cryptotools.transformations import bytes_to_int, bytes_to_hex, hex_to_bytes
 from cryptotools.BTC.opcodes import SIGHASH, TX, OP
 from cryptotools.BTC.network import network
 from cryptotools.BTC.script import VM, asm, witness_program, push, pad, ScriptValidationError, var_int, serialize, depush, get_type, decode_scriptpubkey
-from cryptotools.BTC.error import ValidationError, SerializationError, SigningError, UpstreamError, HTTPError
+from cryptotools.BTC.error import ValidationError, SerializationError, SigningError
 from cryptotools.ECDSA.secp256k1 import is_pubkey, is_signature
+from cryptotools.BTC.backend import current_backend
 
 
 concat = b''.join
@@ -451,25 +452,21 @@ class Transaction:
 
     @classmethod
     def get(cls, txhash):
-        """Construct a transaction from it's tx id by getting the raw data from blockchain.info"""
-        import urllib.request
+        """Construct a transaction from it's tx id by getting the raw data from the configured backend"""
         from urllib.error import HTTPError
         if isinstance(txhash, bytes):
             txhash = bytes_to_hex(txhash)
 
-        url = network('rawtx_url').format(txid=txhash)
-        req = urllib.request.Request(url)
+        backend = current_backend()
+        txhex = backend.get_tx(txhash)
+
         sleep(0.1)
         try:
-            with urllib.request.urlopen(req) as resp:
-                try:
-                    return cls.from_hex(resp.read().decode())
-                except SerializationError as e:
-                    e.txhash = txhash
-                    raise e
-        except HTTPError as e:
-            resp = e.read().decode()
-            raise UpstreamError(resp)
+            return cls.from_hex(txhex)
+        except SerializationError as e:
+            e.txhash = txhash
+            raise e
+
 
     def sighash(self, i, script=b'', hashcode=SIGHASH.ALL):
         inp = self.inputs[i]
@@ -567,17 +564,9 @@ class Transaction:
             return all(results)
 
     def broadcast(self):
-        import urllib.request
-        import urllib.parse
-
-        url = network('broadcast_url')
-        payload = {'tx': self.hex()}
-        data = urllib.parse.urlencode(payload).encode('ascii')
-        req = urllib.request.Request(url, data)
-
-        try:
-            with urllib.request.urlopen(req) as response:
-                resp = response.read()
-        except HTTPError as e:
-            resp = e.read()
-        return resp.decode().strip('\n')
+        backend = current_backend()
+        success = backend.broadcast(self.hex())
+        if success:
+            print(f"Transaction Broadcasted")
+        else:
+            print('Unable to broadcast transaction')
