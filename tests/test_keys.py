@@ -167,6 +167,15 @@ class TestSchnorr(unittest.TestCase):
             
             self.assertEqual(result, vector['result'])
 
+    def test_random_msg(self):
+        for i in range(25):
+            aux = secrets.token_bytes(32).ljust(32, b'\x00')
+            msg = Message(secrets.token_bytes(32).ljust(32, b'\x00'))
+            prv, pub = generate_keypair()
+            sig = msg.sign_schnorr(prv, aux)
+            result = msg.verify(sig, pub)
+            self.assertTrue(result)
+
 class TestHD(unittest.TestCase):
     """https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki#test-vectors"""
 

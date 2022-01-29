@@ -315,6 +315,8 @@ class Message(message.Message):
     def sign_schnorr(self, private: PrivateKey, aux: bytes = None) -> Schnorr:
         """https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#default-signing"""
         
+        assert len(self.msg) == 32, 'The message must be 32 bytes long'
+
         if aux is None:
             aux = secrets.token_bytes(32)
         aux = aux.rjust(32, b'\x00')
@@ -345,8 +347,8 @@ class Message(message.Message):
 
     def _verify_schnorr(self, signature: Schnorr, public: PublicKey) -> bool:
         try:
-            P = public.point
-        except AssertionError:
+            P = Point.from_compact(int_to_bytes(public.x, 32))
+        except AssertionError as e:
             return False
         r = signature.R.x
         if r >= CURVE.P:
