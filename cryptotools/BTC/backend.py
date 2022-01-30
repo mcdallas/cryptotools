@@ -165,6 +165,76 @@ class RPC(Backend):
         result = self.rpc_call('sendrawtransaction', [rawtx])['result']
         return True
 
+
+class BlockStream(Backend):
+
+    RAW_TX_URLS = {
+        NETWORK.MAIN: "https://blockstream.info/api/tx/{txid}/hex",
+        NETWORK.TEST: "https://blockstream.info/testnet/api/tx/{txid}/hex"
+    }
+    BROADCAST_URLS = {
+        NETWORK.MAIN: "https://blockstream.info/api/tx",
+        NETWORK.TEST: "https://blockstream.info/testnet/api/tx"
+    }
+    UTXO_URLS = {
+        NETWORK.MAIN: "https://blockstream.info/api/address/{address}/utxo",
+        NETWORK.TEST: "https://blockstream.info/testnet/api/address/{address}/utxo"
+    }
+
+    def _get_url(self, url_map):
+        network = current_network()
+        try:
+            return url_map[network]
+        except KeyError:
+            raise NotSupportedError(f"The {self.__class__.__name__} backend does not support this functionality for the network {network}")
+
+    def get_tx(self, txid):
+        url = self._get_url(self.RAW_TX_URLS)
+        req = request.Request(url.format(txid=txid))
+        
+        try:
+            with request.urlopen(req) as resp:
+                return resp.read().decode()
+        except HTTPError as e:
+            resp = e.read().decode()
+            raise UpstreamError(resp)
+    
+    def broadcast(self, rawtx: str):
+
+        url = self._get_url(self.BROADCAST_URLS)
+
+        data = parse.urlencode(rawtx).encode('ascii')
+        req = request.Request(url, data)
+
+        try:
+            with request.urlopen(req) as response:
+                resp = response.read()
+        except HTTPError as e:
+            resp = e.read()
+            raise UpstreamError(resp)
+        
+        return True
+
+    def get_utxos(self, address: str):
+        from cryptotools.BTC.transaction import Output
+
+        url = self._get_url(self.UTXO_URLS)
+        req = request.Request(url.format(address=address))
+        outputs = []
+        try:
+            with request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode())
+        except HTTPError as e:
+            resp = e.read().decode()
+            raise UpstreamError(resp)
+        else:
+            for item in data:
+                out = Output(value=item['value'], script=b"")
+                out.parent_id = hex_to_bytes(item['txid'])
+                out.tx_index = item['vout']
+                outputs.append(out)
+            return outputs
+
 class TestingBackend(Backend):
     """Backend used for testing to avoid network calls"""
 
