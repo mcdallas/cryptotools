@@ -203,14 +203,14 @@ class BlockStream(Backend):
 
         url = self._get_url(self.BROADCAST_URLS)
 
-        data = parse.urlencode(rawtx).encode('ascii')
+        data = rawtx.encode('ascii')
         req = request.Request(url, data)
 
         try:
             with request.urlopen(req) as response:
                 resp = response.read()
         except HTTPError as e:
-            resp = e.read()
+            resp = e.read().decode()
             raise UpstreamError(resp)
         
         return True
