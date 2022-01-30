@@ -7,7 +7,7 @@ from typing import List
 from urllib import request, parse
 from urllib.error import HTTPError
 
-import tests
+import cryptotools
 from cryptotools.BTC.error import UpstreamError, BackendError, NotSupportedError
 from cryptotools.BTC.network import NETWORK, current_network
 from cryptotools.transformations import hex_to_bytes, btc_to_satoshi
@@ -172,8 +172,8 @@ class TestingBackend(Backend):
     """Backend used for testing to avoid network calls"""
 
     ECHO = False
-    ROOT_PATH = pathlib.Path(tests.__path__[0])
-    TRANSACTIONS_PATH = ROOT_PATH / 'transactions'
+    ROOT_PATH = pathlib.Path(cryptotools.__path__[0])
+    TRANSACTIONS_PATH = ROOT_PATH.parent / 'tests' / 'transactions'
     CACHE = {}
 
     def get_tx(self, txhash: str) -> str:
