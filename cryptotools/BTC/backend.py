@@ -264,12 +264,13 @@ class TestingBackend(Backend):
 
 class Backends(Enum):
     BLOCKCHAININFO = 'BLOCKCHAININFO'
+    BLOCKSTREAM = 'BLOCKSTREAM'
     RPC = 'RPC'
     TEST = 'TEST'
 
     @classmethod
     def from_env(cls):
-        env = os.environ.get('CRYPTOTOOLS_BACKEND', 'BLOCKCHAININFO').upper()
+        env = os.environ.get('CRYPTOTOOLS_BACKEND', 'BLOCKSTREAM').upper()
         return cls(env)
 
 
@@ -278,6 +279,7 @@ def current_backend():
 
     backend =  {
         Backends.BLOCKCHAININFO: BlockchainInfo,
+        Backends.BLOCKSTREAM: BlockStream,
         Backends.RPC: RPC,
         Backends.TEST: TestingBackend
     }[backend_type]
