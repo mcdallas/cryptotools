@@ -30,15 +30,12 @@ class BlockchainInfo(Backend):
 
     UTXO_URLS = {
         NETWORK.MAIN: 'https://blockchain.info/unspent?active={address}',
-        NETWORK.TEST: 'https://testnet.blockchain.info/unspent?active={address}'
     }
     BROADCAST_URLS = {
         NETWORK.MAIN: 'https://blockchain.info/pushtx',
-        NETWORK.TEST: 'https://testnet.blockchain.info/pushtx'
     }
     RAW_TX_URLS = {
         NETWORK.MAIN: 'https://blockchain.info/rawtx/{txid}?format=hex',
-        NETWORK.TEST: 'https://blockstream.info/testnet/api/tx/{txid}/hex'
     }
 
     def _get_url(self, url_map):
