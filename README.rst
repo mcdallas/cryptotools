@@ -200,7 +200,7 @@ enviromental variables
 .. code-block:: bash
 
     CRYPTOTOOLS_BACKEND=rpc
-    CRYPTOTOOLS_BACKEND=localhost
+    CRYPTOTOOLS_RPC_HOST=localhost
     CRYPTOTOOLS_RPC_PORT=8332
 
 and optionally
